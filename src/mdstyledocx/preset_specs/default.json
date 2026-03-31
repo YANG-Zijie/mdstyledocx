@@ -1,0 +1,63 @@
+{
+  "name": "default",
+  "description": "General-purpose clean document preset",
+  "page": {
+    "width": 11907,
+    "height": 16838,
+    "margin_top": 1440,
+    "margin_right": 1440,
+    "margin_bottom": 1440,
+    "margin_left": 1440
+  },
+  "styles": {
+    "title": {
+      "font_east_asia": "等线",
+      "font_ascii": "Calibri",
+      "size_half_points": 32,
+      "bold": true,
+      "align": "center",
+      "spacing_after": 240,
+      "line": 240
+    },
+    "heading1": {
+      "font_east_asia": "等线",
+      "font_ascii": "Calibri",
+      "size_half_points": 28,
+      "bold": true,
+      "spacing_before": 120,
+      "spacing_after": 120,
+      "line": 276
+    },
+    "heading2": {
+      "font_east_asia": "等线",
+      "font_ascii": "Calibri",
+      "size_half_points": 24,
+      "bold": true,
+      "spacing_before": 120,
+      "spacing_after": 80,
+      "line": 276
+    },
+    "heading3": {
+      "font_east_asia": "宋体",
+      "font_ascii": "Calibri",
+      "size_half_points": 22,
+      "bold": true,
+      "spacing_before": 80,
+      "spacing_after": 60,
+      "line": 276
+    },
+    "body": {
+      "font_east_asia": "宋体",
+      "font_ascii": "Calibri",
+      "size_half_points": 22,
+      "line": 276,
+      "line_rule": "auto",
+      "spacing_after": 120
+    }
+  },
+  "list_settings": {
+    "base_left_indent": 720,
+    "hanging": 360,
+    "level_step": 360
+  }
+}
