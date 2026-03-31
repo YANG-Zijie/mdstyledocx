@@ -1,5 +1,9 @@
 # mdstyledocx
 
+[![PyPI version](https://img.shields.io/pypi/v/mdstyledocx.svg)](https://pypi.org/project/mdstyledocx/)
+[![Python versions](https://img.shields.io/pypi/pyversions/mdstyledocx.svg)](https://pypi.org/project/mdstyledocx/)
+[![License](https://img.shields.io/pypi/l/mdstyledocx.svg)](https://pypi.org/project/mdstyledocx/)
+
 一个按约定编写 Markdown、再一键导出标准化 Word (`.docx`) 的小工具。
 
 当前设计重点不是“完整支持所有 Markdown 语法”，而是“稳定地把结构化 Markdown 落成统一版式的 Word 文档”。它适合做：
@@ -37,9 +41,43 @@
 - `*.json`：样式参数、页边距、字体、缩进等机器可读定义
 - `*.md`：该模板的写作约定、推荐语法和边界说明
 
+## 安装
+
+已发布到 PyPI：
+
+- https://pypi.org/project/mdstyledocx/
+
+如果你使用 `uv`，推荐直接安装为命令行工具：
+
+```bash
+uv tool install mdstyledocx
+mdstyledocx --list-presets
+```
+
+如果你只想临时执行一次，也可以：
+
+```bash
+uvx mdstyledocx --list-presets
+```
+
+如果你使用 `pip`：
+
+```bash
+pip install mdstyledocx
+mdstyledocx --list-presets
+```
+
 ## 使用方式
 
-推荐直接用 `uv`：
+安装完成后，可以直接这样使用：
+
+```bash
+mdstyledocx --list-presets
+mdstyledocx --show-preset-rules gov-cn
+mdstyledocx examples/gov_notice.md -o examples/gov_notice.docx --preset gov-cn
+```
+
+如果你是在本仓库里做开发，推荐直接用 `uv`：
 
 ```bash
 uv sync
