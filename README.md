@@ -67,6 +67,19 @@ pip install mdstyledocx
 mdstyledocx --list-presets
 ```
 
+## Codex / AI Agent Skill
+
+本仓库同时提供 [`mdstyledocx` Skill](.agents/skills/mdstyledocx/SKILL.md)，用于让 Codex 或兼容 Agent Skills 结构的 AI 工具选择 preset、整理受支持的 Markdown，并调用 `mdstyledocx` 生成和检查 Word 文档。
+
+在本仓库目录中启动 Codex 时，它会自动发现这个 Skill。也可以让 Codex 从公开 GitHub 仓库安装：
+
+```text
+$skill-installer
+请从 https://github.com/YANG-Zijie/mdstyledocx/tree/main/.agents/skills/mdstyledocx 安装 mdstyledocx skill。
+```
+
+安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或已安装的 `mdstyledocx` 命令，也可以通过 `uvx mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
+
 ## 使用方式
 
 安装完成后，可以直接这样使用：
@@ -153,14 +166,13 @@ README 只保留通用约定。某个 preset 的专用写法，以对应的 `pre
 
 当前版本优先保证：
 
-- 标题、段落、列表、分页可稳定导出
+- 标题、段落、列表、分页、本地图片可稳定导出
 - 预设版式可复用
 - 产物是标准 `.docx`
 
 暂未覆盖：
 
 - 表格
-- 图片
 - 脚注
 - 复杂嵌套列表
 - 目录自动生成
