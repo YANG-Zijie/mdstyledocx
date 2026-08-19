@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Any
+
+import yaml
 
 from mdstyledocx.model import Block, Document, ImageSpan, InlineElement, InlineSpan
 
@@ -11,6 +14,7 @@ ORDERED_RE = re.compile(r"^(\s*)(\d+)\.\s+(.*?)\s*$")
 INLINE_TOKEN_RE = re.compile(r"(!\[[^\]]*]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)")
 IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
 PAGEBREAK_MARKERS = {"<!-- pagebreak -->", "<!--pagebreak-->", "\f", "\\f"}
+TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
 
 
 def parse_markdown(text: str, base_path: Path | None = None) -> Document:
@@ -21,7 +25,29 @@ def parse_markdown(text: str, base_path: Path | None = None) -> Document:
 
     has_title = any(block.kind == "heading" and block.level == 1 for block in blocks)
     if metadata.get("title") and not has_title:
-        blocks.insert(0, Block(kind="heading", level=1, spans=parse_inline(metadata["title"], base_path)))
+        blocks.insert(
+            0,
+            Block(
+                kind="heading",
+                level=1,
+                spans=parse_inline(str(metadata["title"]), base_path),
+            ),
+        )
+
+    if (raw_date := metadata.get("date")) not in (None, ""):
+        date_block = Block(
+            kind="date",
+            spans=parse_inline(str(raw_date), base_path),
+        )
+        title_index = next(
+            (
+                index
+                for index, block in enumerate(blocks)
+                if block.kind == "heading" and block.level == 1
+            ),
+            None,
+        )
+        blocks.insert(0 if title_index is None else title_index + 1, date_block)
 
     return Document(metadata=metadata, blocks=blocks)
 
@@ -50,21 +76,25 @@ def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement
     return spans or [InlineSpan(text="")]
 
 
-def _parse_frontmatter(lines: list[str]) -> tuple[dict[str, str], list[str]]:
+def _parse_frontmatter(lines: list[str]) -> tuple[dict[str, Any], list[str]]:
     if not lines or lines[0].strip() != "---":
         return {}, lines
 
-    metadata: dict[str, str] = {}
     for index in range(1, len(lines)):
-        current = lines[index].strip()
-        if current == "---":
-            return metadata, lines[index + 1 :]
-        if ":" not in lines[index]:
-            return {}, lines
-        key, value = lines[index].split(":", 1)
-        metadata[key.strip()] = value.strip()
+        if lines[index].strip() != "---":
+            continue
 
-    return {}, lines
+        source = "\n".join(lines[1:index])
+        try:
+            metadata = yaml.safe_load(source) or {}
+        except yaml.YAMLError as error:
+            raise ValueError(f"Invalid YAML frontmatter: {error}") from error
+
+        if not isinstance(metadata, dict):
+            raise TypeError("YAML frontmatter must contain a mapping at the top level")
+        return metadata, lines[index + 1 :]
+
+    raise ValueError("Unterminated YAML frontmatter")
 
 
 def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
@@ -96,6 +126,12 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
             index += 1
             continue
 
+        table_result = _parse_table(lines, index, base_path)
+        if table_result is not None:
+            table, index = table_result
+            blocks.append(table)
+            continue
+
         bullet_match = BULLET_RE.match(raw)
         if bullet_match:
             blocks.append(
@@ -124,7 +160,7 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
             continue
 
         paragraph_lines: list[str] = []
-        while index < len(lines) and not _starts_new_block(lines[index]):
+        while index < len(lines) and not _starts_new_block(lines, index):
             paragraph_lines.append(_strip_blockquote(lines[index].rstrip()))
             index += 1
 
@@ -135,7 +171,8 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
     return blocks
 
 
-def _starts_new_block(line: str) -> bool:
+def _starts_new_block(lines: list[str], index: int) -> bool:
+    line = lines[index]
     stripped = line.strip()
     if not stripped:
         return True
@@ -143,11 +180,110 @@ def _starts_new_block(line: str) -> bool:
         return True
     if HEADING_RE.match(line):
         return True
+    if _is_table_start(lines, index):
+        return True
     if BULLET_RE.match(line):
         return True
-    if ORDERED_RE.match(line):
-        return True
-    return False
+    return bool(ORDERED_RE.match(line))
+
+
+def _parse_table(
+    lines: list[str], index: int, base_path: Path | None
+) -> tuple[Block, int] | None:
+    if not _is_table_start(lines, index):
+        return None
+
+    header_cells = _split_table_row(lines[index])
+    separators = _split_table_row(lines[index + 1])
+    column_count = len(header_cells)
+    if len(separators) != column_count:
+        raise ValueError(
+            "Markdown table header and separator must have the same column count"
+        )
+
+    alignments = [_table_alignment(value) for value in separators]
+    rows = [[parse_inline(value, base_path) for value in header_cells]]
+    index += 2
+
+    while index < len(lines):
+        stripped = lines[index].strip()
+        if not stripped or "|" not in stripped:
+            break
+        cells = _split_table_row(lines[index])
+        if len(cells) != column_count:
+            raise ValueError(
+                "Markdown table rows must have the same column count as the header"
+            )
+        rows.append([parse_inline(value, base_path) for value in cells])
+        index += 1
+
+    return (
+        Block(
+            kind="table",
+            table_rows=rows,
+            table_alignments=alignments,
+        ),
+        index,
+    )
+
+
+def _is_table_start(lines: list[str], index: int) -> bool:
+    if index + 1 >= len(lines) or "|" not in lines[index]:
+        return False
+    separators = _split_table_row(lines[index + 1])
+    return bool(separators) and all(
+        TABLE_SEPARATOR_RE.fullmatch(value) for value in separators
+    )
+
+
+def _split_table_row(line: str) -> list[str]:
+    source = line.strip()
+    if source.startswith("|"):
+        source = source[1:]
+    if source.endswith("|") and not source.endswith("\\|"):
+        source = source[:-1]
+
+    cells: list[str] = []
+    current: list[str] = []
+    in_code = False
+    index = 0
+    while index < len(source):
+        character = source[index]
+        if character == "`":
+            in_code = not in_code
+            current.append(character)
+            index += 1
+            continue
+        if (
+            character == "\\"
+            and index + 1 < len(source)
+            and source[index + 1] == "|"
+        ):
+            current.append("|")
+            index += 2
+            continue
+        if character == "|" and not in_code:
+            cells.append("".join(current).strip())
+            current = []
+            index += 1
+            continue
+        current.append(character)
+        index += 1
+
+    cells.append("".join(current).strip())
+    return cells
+
+
+def _table_alignment(separator: str) -> str | None:
+    left = separator.startswith(":")
+    right = separator.endswith(":")
+    if left and right:
+        return "center"
+    if right:
+        return "right"
+    if left:
+        return "left"
+    return None
 
 
 def _strip_blockquote(line: str) -> str:

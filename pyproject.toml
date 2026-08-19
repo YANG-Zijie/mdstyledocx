@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mdstyledocx"
-version = "0.1.0"
+version = "0.2.0"
 description = "Convert convention-based Markdown into standardized DOCX with reusable style presets."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,10 +19,16 @@ classifiers = [
 ]
 dependencies = [
     "python-docx>=1.2.0",
+    "pyyaml>=6.0.3",
 ]
 
 [project.scripts]
 mdstyledocx = "mdstyledocx.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/YANG-Zijie/mdstyledocx"
+Repository = "https://github.com/YANG-Zijie/mdstyledocx"
+Issues = "https://github.com/YANG-Zijie/mdstyledocx/issues"
 
 [tool.setuptools]
 package-dir = {"" = "src"}
@@ -31,4 +37,4 @@ package-dir = {"" = "src"}
 where = ["src"]
 
 [tool.setuptools.package-data]
-mdstyledocx = ["preset_specs/*.json", "preset_specs/*.md"]
+mdstyledocx = ["preset.schema.json", "preset_specs/*.json", "preset_specs/*.md"]

@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "name": "official-doc-cn-system-fonts",
+  "description": "Chinese official document preset with common system font names",
+  "page": {
+    "width": 11907,
+    "height": 16838,
+    "margin_top": 1440,
+    "margin_right": 1800,
+    "margin_bottom": 1440,
+    "margin_left": 1800
+  },
+  "paragraph_defaults": {
+    "spacing_before": 0,
+    "spacing_after": 0,
+    "line": 560,
+    "line_rule": "exact"
+  },
+  "styles": {
+    "title": {
+      "font_east_asia": "黑体",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 44,
+      "align": "center",
+      "spacing_after": 560
+    },
+    "heading1": {
+      "font_east_asia": "黑体",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "first_line_indent": 640
+    },
+    "heading2": {
+      "font_east_asia": "楷体",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "first_line_indent": 640
+    },
+    "heading3": {
+      "font_east_asia": "仿宋",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "bold": true
+    },
+    "body": {
+      "font_east_asia": "仿宋",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "align": "both",
+      "first_line_indent": 640,
+      "overflow_punctuation": false
+    }
+  },
+  "page_styles": {
+    "header": {
+      "font_east_asia": "仿宋",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 21,
+      "bottom_border_size": 4,
+      "bottom_border_space": 1,
+      "bottom_border_color": "000000"
+    },
+    "footer": {
+      "font_east_asia": "宋体",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 21
+    },
+    "watermark": {
+      "font_east_asia": "黑体",
+      "font_ascii": "Arial",
+      "size_half_points": 72
+    }
+  },
+  "watermark_defaults": {
+    "color": "D9D9D9",
+    "opacity": 0.25,
+    "rotation": -45
+  },
+  "list_settings": {
+    "base_left_indent": 720,
+    "hanging": 360,
+    "level_step": 360
+  }
+}

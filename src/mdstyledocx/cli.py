@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
+from mdstyledocx import __version__
 from mdstyledocx.docx_writer import build_docx
 from mdstyledocx.markdown import parse_markdown
-from mdstyledocx.presets import list_presets, load_preset, load_preset_rules
+from mdstyledocx.presets import (
+    list_presets,
+    load_preset,
+    load_preset_definition,
+    load_preset_rules,
+    load_preset_schema,
+)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -15,7 +23,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         prog="mdstyledocx",
         description="Convert convention-based Markdown into standardized DOCX using reusable presets.",
     )
-    parser.add_argument("input", nargs="?", help="Input Markdown file path, or '-' to read from stdin.")
+    parser.add_argument(
+        "input",
+        nargs="?",
+        help="Input Markdown file path, or '-' to read from stdin.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
+    )
     parser.add_argument("-o", "--output", help="Output DOCX file path.")
     parser.add_argument(
         "--preset",
@@ -37,6 +54,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="PRESET",
         help="Print the Markdown conventions and style notes for a built-in preset, then exit.",
     )
+    parser.add_argument(
+        "--show-preset-json",
+        metavar="PRESET",
+        help="Print the fully resolved machine-readable JSON for a preset, then exit.",
+    )
+    parser.add_argument(
+        "--show-preset-schema",
+        action="store_true",
+        help="Print the JSON Schema for preset files, then exit.",
+    )
 
     args = parser.parse_args(list(argv) if argv is not None else None)
 
@@ -49,8 +76,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(load_preset_rules(args.show_preset_rules).rstrip())
         return 0
 
+    if args.show_preset_json:
+        definition = load_preset_definition(args.show_preset_json, args.preset_file)
+        print(json.dumps(definition, ensure_ascii=False, indent=2))
+        return 0
+
+    if args.show_preset_schema:
+        print(load_preset_schema().rstrip())
+        return 0
+
     if not args.input:
-        parser.error("an input Markdown file is required unless --list-presets is used")
+        parser.error("an input Markdown file is required unless an inspection option is used")
 
     if args.input == "-":
         markdown_text = sys.stdin.read()

@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/YANG-Zijie/mdstyledocx/blob/main/src/mdstyledocx/preset.schema.json",
+  "title": "mdstyledocx preset",
+  "description": "Schema for built-in presets and JSON preset overrides. New files should declare schema_version; files without it are treated as version 1 for compatibility.",
+  "type": "object",
+  "required": ["schema_version"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1
+    },
+    "extends": {
+      "type": "string",
+      "minLength": 1
+    },
+    "page": {
+      "$ref": "#/$defs/page"
+    },
+    "paragraph_defaults": {
+      "$ref": "#/$defs/style"
+    },
+    "styles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "title": {"$ref": "#/$defs/style"},
+        "heading1": {"$ref": "#/$defs/style"},
+        "heading2": {"$ref": "#/$defs/style"},
+        "heading3": {"$ref": "#/$defs/style"},
+        "body": {"$ref": "#/$defs/style"}
+      }
+    },
+    "page_styles": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "header": {"$ref": "#/$defs/style"},
+        "footer": {"$ref": "#/$defs/style"},
+        "watermark": {"$ref": "#/$defs/style"}
+      }
+    },
+    "watermark_defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "color": {
+          "type": "string",
+          "pattern": "^#?[0-9A-Fa-f]{6}$"
+        },
+        "opacity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rotation": {
+          "type": "integer"
+        }
+      }
+    },
+    "list_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base_left_indent": {"$ref": "#/$defs/nonNegativeTwips"},
+        "hanging": {"$ref": "#/$defs/nonNegativeTwips"},
+        "level_step": {"$ref": "#/$defs/nonNegativeTwips"}
+      }
+    },
+    "heading_numbering": {
+      "type": "object",
+      "propertyNames": {
+        "pattern": "^[1-6]$"
+      },
+      "additionalProperties": {
+        "enum": ["cn-section", "cn-paren", "arabic-dot"]
+      }
+    }
+  },
+  "$defs": {
+    "nonNegativeTwips": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Distance in twips (20 twips = 1 point)."
+    },
+    "positiveTwips": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Positive distance in twips (20 twips = 1 point)."
+    },
+    "page": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "width": {"$ref": "#/$defs/positiveTwips"},
+        "height": {"$ref": "#/$defs/positiveTwips"},
+        "margin_top": {"$ref": "#/$defs/nonNegativeTwips"},
+        "margin_right": {"$ref": "#/$defs/nonNegativeTwips"},
+        "margin_bottom": {"$ref": "#/$defs/nonNegativeTwips"},
+        "margin_left": {"$ref": "#/$defs/nonNegativeTwips"},
+        "header": {"$ref": "#/$defs/nonNegativeTwips"},
+        "footer": {"$ref": "#/$defs/nonNegativeTwips"},
+        "gutter": {"$ref": "#/$defs/nonNegativeTwips"}
+      }
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "font_east_asia": {"type": "string", "minLength": 1},
+        "font_ascii": {"type": "string", "minLength": 1},
+        "size_half_points": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Font size in half-points."
+        },
+        "bold": {"type": "boolean"},
+        "italic": {"type": "boolean"},
+        "align": {"enum": ["left", "center", "right", "justify", "both"]},
+        "first_line_indent": {"type": "integer"},
+        "left_indent": {"type": "integer"},
+        "hanging": {"$ref": "#/$defs/nonNegativeTwips"},
+        "spacing_before": {"$ref": "#/$defs/nonNegativeTwips"},
+        "spacing_after": {"$ref": "#/$defs/nonNegativeTwips"},
+        "line": {"$ref": "#/$defs/positiveTwips"},
+        "line_rule": {"enum": ["auto", "exact"]},
+        "overflow_punctuation": {
+          "type": "boolean",
+          "description": "Whether punctuation may extend beyond the paragraph text boundary."
+        },
+        "bottom_border_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Bottom paragraph border width in eighths of a point; zero disables it."
+        },
+        "bottom_border_space": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Space between text and bottom paragraph border in points."
+        },
+        "bottom_border_color": {
+          "type": "string",
+          "pattern": "^(auto|[0-9A-Fa-f]{6})$"
+        }
+      }
+    }
+  }
+}

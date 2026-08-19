@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "name": "official-doc-cn-system-fonts-12pt",
+  "description": "Chinese official document preset with common system font names, an 18 pt title, and 12 pt headings and body",
+  "extends": "official-doc-cn-system-fonts",
+  "paragraph_defaults": {
+    "line": 400
+  },
+  "styles": {
+    "title": {
+      "size_half_points": 36,
+      "spacing_after": 400
+    },
+    "heading1": {
+      "size_half_points": 24,
+      "first_line_indent": 480
+    },
+    "heading2": {
+      "size_half_points": 24,
+      "first_line_indent": 480
+    },
+    "heading3": {
+      "size_half_points": 24
+    },
+    "body": {
+      "size_half_points": 24,
+      "first_line_indent": 480
+    }
+  }
+}

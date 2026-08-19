@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -18,6 +19,8 @@ class ImageSpan:
 
 
 InlineElement = InlineSpan | ImageSpan
+TableCell = list[InlineElement]
+TableRow = list[TableCell]
 
 
 @dataclass
@@ -28,9 +31,11 @@ class Block:
     list_kind: str | None = None
     list_level: int = 0
     number: int | None = None
+    table_rows: list[TableRow] = field(default_factory=list)
+    table_alignments: list[str | None] = field(default_factory=list)
 
 
 @dataclass
 class Document:
-    metadata: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
     blocks: list[Block] = field(default_factory=list)

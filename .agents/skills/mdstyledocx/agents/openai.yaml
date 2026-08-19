@@ -1,4 +1,4 @@
 interface:
   display_name: "mdstyledocx"
-  short_description: "Convert Markdown into preset-styled DOCX files"
-  default_prompt: "Use $mdstyledocx to convert this Markdown into a standardized DOCX file."
+  short_description: "Create standardized preset-styled DOCX files"
+  default_prompt: "Use $mdstyledocx to convert this Markdown into a standardized DOCX with the appropriate preset."
