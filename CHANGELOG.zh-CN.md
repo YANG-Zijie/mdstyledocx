@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## 0.2.0 - 尚未发布
+## 0.2.0 - 2026-08-20
 
 - 将中文公文 preset 的正式名称调整为 `official-doc-cn*`，旧名称仅作为内部兼容别名保留。
 - 新增 12 pt 小四号和通用系统字体变体。

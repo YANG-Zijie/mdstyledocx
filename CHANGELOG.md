@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## 0.2.0 - Unreleased
+## 0.2.0 - 2026-08-20
 
 - Rename the canonical Chinese presets to `official-doc-cn*`, retaining the old names only as internal compatibility aliases.
 - Add 12 pt and common-system-font variants.
