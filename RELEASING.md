@@ -13,6 +13,20 @@ PyPI 项目中的 GitHub Trusted Publisher 应与下列信息完全一致：
 
 GitHub 仓库中应创建名为 `pypi` 的 Environment，并建议设置必要的审批人。发布不需要保存 PyPI API Token；发布作业通过 GitHub OIDC 获取短期凭证。
 
+## 启用推送前检查
+
+首次克隆仓库后运行：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+此后每次 `git push` 前都会自动验证工作流 YAML 和全部远程 Action 引用，并运行测试与发布包构建。远程引用检查需要能够访问 GitHub。也可以随时手动运行：
+
+```bash
+./.githooks/pre-push
+```
+
 ## 发布一个版本
 
 1. 同步更新 `pyproject.toml` 中的 `project.version` 和 `src/mdstyledocx/__init__.py` 中的 `__version__`。

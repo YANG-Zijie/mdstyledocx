@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+- Add a repository-managed pre-push preflight for workflow action references, tests, and distribution builds.
+
 ## 0.2.0 - 2026-08-20
 
 - Rename the canonical Chinese presets to `official-doc-cn*`, retaining the old names only as internal compatibility aliases.

@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## 尚未发布
+
+- 新增由仓库管理的 pre-push 预检，统一验证工作流 Action 引用、运行测试并构建发布包。
+
 ## 0.2.0 - 2026-08-20
 
 - 将中文公文 preset 的正式名称调整为 `official-doc-cn*`，旧名称仅作为内部兼容别名保留。
