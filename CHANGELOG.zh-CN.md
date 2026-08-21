@@ -5,6 +5,7 @@
 ## 尚未发布
 
 - 新增由仓库管理的 pre-push 预检，统一验证工作流 Action 引用、运行测试并构建发布包。
+- 新增源自 Airalogy Markdown（AIMD）的 fenced `fig` 和 `ref_fig` 语法，支持本地图片解析、自动编号、图题、图例、Word 书签与内部链接、结构校验以及由 preset 控制的图号和样式；不参与引用的图片可以省略 `id`，且不会改写 Markdown 源文件。
 
 ## 0.2.0 - 2026-08-20
 

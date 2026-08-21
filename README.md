@@ -25,6 +25,8 @@
 - `-` / `*` / `+`：无序列表
 - `1.`：有序列表
 - `| ... |`：Markdown 表格；导出为原生 Word 表格
+- fenced `fig`：带自动编号、图题、图例和可选稳定 ID 的结构化图片
+- `{{ref_fig|...}}`：引用结构化图片并生成可点击的图号
 - `<!-- pagebreak -->`：分页
 
 然后执行一次命令，就能得到带统一字体、字号、缩进、页边距的 `.docx`。
@@ -251,11 +253,35 @@ README 只保留通用约定。某个 preset 的专用写法，以对应的 `pre
 }
 ```
 
+## 结构化图片
+
+普通 Markdown 图片 `![](path)` 适合不需要编号和引用的插图。正式文档中需要把图片、图号、图题和图例绑定为一个整体时，可以使用 fenced `fig`：
+
+````md
+正文中可通过 {{ref_fig|lab_team}} 引用该图。
+
+```fig
+id: lab_team
+src: images/lab-team.jpeg
+title: 实验室团队合影
+legend: 这是可选的详细图例说明。
+```
+````
+
+`fig` 按文档出现顺序自动编号；`official-doc-cn*` preset 输出“图 1：图题”，`default` preset 输出“Figure 1: Title”。`src` 必填，`id`、`title` 与 `legend` 可选。仅需编号和图题时可以省略 `id`，转换器会在内存中为 Word 编号与书签分配内部标识，但不会改写 Markdown 源文件；需要使用 `{{ref_fig|lab_team}}` 引用图片时，目标图片必须显式声明唯一的 `id`。重复 `id`、不存在的引用、未知字段和未闭合代码块都会使转换失败。`legend` 可以使用 YAML `|` 编写多行内容。
+
+这套 `fig` / `ref_fig` 写法源自 [Airalogy Markdown（AIMD）的结构化图片语法](https://github.com/airalogy/airalogy/blob/main/docs/airalogy/en/syntax/fig.md)。`mdstyledocx` 实现的是适合独立 Markdown 文档的本地图片子集，并额外允许不参与 `ref_fig` 引用的图片省略 `id`；严格的 AIMD 文件仍应显式填写 `id`。`src` 按 Markdown 文件目录解析为本地路径；网络 URL、Airalogy File ID 和 `.aira` 资源解析仍由 Airalogy 工具链负责。
+
+普通图片不会参与编号。需要正式图号时应使用 `fig`，不要手工在图片下方另写“图 1”，也不要把图片放进 Markdown 标题中。
+
+图题与图例样式分别由 preset 的 `styles.figure_caption` 和 `styles.figure_legend` 控制；`figure_settings.label` 与 `figure_settings.title_separator` 控制图号标签和图题分隔符。
+
 ## 支持范围
 
 当前版本优先保证：
 
-- 标题、段落、列表、表格、分页、本地图片可稳定导出
+- 标题、段落、列表、表格、分页、本地图片及结构化 `fig` 可稳定导出
+- 结构化图片可自动编号、输出图题与图例，并通过 `ref_fig` 生成 Word 内部链接
 - 表格首行自动加粗并在跨页时重复显示，列宽依据各列内容分配后继续允许 Word 自动调整
 - YAML frontmatter 驱动的页眉、页脚、动态页码字段和文本水印
 - 预设版式可复用

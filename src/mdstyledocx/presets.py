@@ -10,6 +10,8 @@ from typing import Any
 
 PRESET_SCHEMA_VERSION = 1
 _REQUIRED_STYLE_NAMES = {"title", "heading1", "heading2", "heading3", "body"}
+_OPTIONAL_STYLE_NAMES = {"figure_caption", "figure_legend"}
+_ALLOWED_STYLE_NAMES = _REQUIRED_STYLE_NAMES | _OPTIONAL_STYLE_NAMES
 _ALLOWED_PAGE_STYLE_NAMES = {"header", "footer", "watermark"}
 _ALLOWED_ALIGNMENTS = {"left", "center", "right", "justify", "both"}
 _ALLOWED_LINE_RULES = {"auto", "exact"}
@@ -25,6 +27,7 @@ _ALLOWED_TOP_LEVEL_FIELDS = {
     "page_styles",
     "watermark_defaults",
     "list_settings",
+    "figure_settings",
     "heading_numbering",
 }
 
@@ -76,6 +79,12 @@ class ListSettings:
 
 
 @dataclass
+class FigureSettings:
+    label: str = "Figure"
+    title_separator: str = ": "
+
+
+@dataclass
 class WatermarkSettings:
     color: str = "D9D9D9"
     opacity: float = 0.25
@@ -89,6 +98,7 @@ class Preset:
     page: PageSettings
     styles: dict[str, Style]
     list_settings: ListSettings
+    figure_settings: FigureSettings = field(default_factory=FigureSettings)
     heading_numbering: dict[int, str] = field(default_factory=dict)
     page_styles: dict[str, Style] = field(default_factory=dict)
     watermark_defaults: WatermarkSettings = field(default_factory=WatermarkSettings)
@@ -201,6 +211,7 @@ def _build_preset(data: dict[str, Any]) -> Preset:
                 for name, style in data["styles"].items()
             },
             list_settings=ListSettings(**data["list_settings"]),
+            figure_settings=FigureSettings(**data.get("figure_settings", {})),
             heading_numbering={
                 int(level): scheme
                 for level, scheme in data.get("heading_numbering", {}).items()
@@ -252,7 +263,14 @@ def _validate_resolved_definition(data: dict[str, Any]) -> None:
     unexpected = sorted(data.keys() - _ALLOWED_TOP_LEVEL_FIELDS)
     if unexpected:
         raise ValueError(f"Unsupported resolved preset fields: {', '.join(unexpected)}")
-    required = {"name", "description", "page", "styles", "list_settings"}
+    required = {
+        "name",
+        "description",
+        "page",
+        "styles",
+        "list_settings",
+        "figure_settings",
+    }
     missing = sorted(required - data.keys())
     if missing:
         raise ValueError(f"Resolved preset is missing required fields: {', '.join(missing)}")
@@ -260,7 +278,7 @@ def _validate_resolved_definition(data: dict[str, Any]) -> None:
     styles = data["styles"]
     if not isinstance(styles, dict):
         raise TypeError("Resolved preset 'styles' must be an object")
-    unexpected_styles = sorted(styles.keys() - _REQUIRED_STYLE_NAMES)
+    unexpected_styles = sorted(styles.keys() - _ALLOWED_STYLE_NAMES)
     if unexpected_styles:
         raise ValueError(
             f"Resolved preset contains unsupported styles: {', '.join(unexpected_styles)}"
@@ -364,6 +382,14 @@ def _validate_preset(preset: Preset) -> None:
     )
     _validate_integer(preset.list_settings.hanging, "List hanging", minimum=0)
     _validate_integer(preset.list_settings.level_step, "List level_step", minimum=0)
+
+    if (
+        not isinstance(preset.figure_settings.label, str)
+        or not preset.figure_settings.label.strip()
+    ):
+        raise ValueError("Figure label must be a non-empty string")
+    if not isinstance(preset.figure_settings.title_separator, str):
+        raise TypeError("Figure title_separator must be a string")
 
     for level, scheme in preset.heading_numbering.items():
         if level < 1 or level > 6:

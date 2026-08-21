@@ -25,6 +25,12 @@
     "body": {
       "size_half_points": 24,
       "first_line_indent": 480
+    },
+    "figure_caption": {
+      "size_half_points": 24
+    },
+    "figure_legend": {
+      "size_half_points": 24
     }
   }
 }

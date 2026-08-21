@@ -54,6 +54,23 @@
       "line": 276,
       "line_rule": "auto",
       "spacing_after": 120
+    },
+    "figure_caption": {
+      "font_east_asia": "宋体",
+      "font_ascii": "Calibri",
+      "size_half_points": 22,
+      "align": "center",
+      "spacing_before": 60,
+      "spacing_after": 40,
+      "line": 276
+    },
+    "figure_legend": {
+      "font_east_asia": "宋体",
+      "font_ascii": "Calibri",
+      "size_half_points": 20,
+      "align": "left",
+      "spacing_after": 120,
+      "line": 276
     }
   },
   "page_styles": {
@@ -82,5 +99,9 @@
     "base_left_indent": 720,
     "hanging": 360,
     "level_step": 360
+  },
+  "figure_settings": {
+    "label": "Figure",
+    "title_separator": ": "
   }
 }

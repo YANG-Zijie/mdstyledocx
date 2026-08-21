@@ -49,6 +49,20 @@
       "align": "both",
       "first_line_indent": 640,
       "overflow_punctuation": false
+    },
+    "figure_caption": {
+      "font_east_asia": "仿宋",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "align": "center",
+      "spacing_after": 40
+    },
+    "figure_legend": {
+      "font_east_asia": "仿宋",
+      "font_ascii": "Times New Roman",
+      "size_half_points": 32,
+      "align": "both",
+      "spacing_after": 160
     }
   },
   "page_styles": {
@@ -80,5 +94,9 @@
     "base_left_indent": 720,
     "hanging": 360,
     "level_step": 360
+  },
+  "figure_settings": {
+    "label": "图",
+    "title_separator": "："
   }
 }

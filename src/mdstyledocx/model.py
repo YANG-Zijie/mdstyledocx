@@ -18,7 +18,12 @@ class ImageSpan:
     alt_text: str = ""
 
 
-InlineElement = InlineSpan | ImageSpan
+@dataclass
+class FigureReferenceSpan:
+    figure_id: str
+
+
+InlineElement = InlineSpan | ImageSpan | FigureReferenceSpan
 TableCell = list[InlineElement]
 TableRow = list[TableCell]
 
@@ -36,6 +41,18 @@ class Block:
 
 
 @dataclass
+class FigureBlock:
+    figure_id: str | None
+    image: ImageSpan
+    title: str | None = None
+    legend: str | None = None
+    kind: str = field(default="figure", init=False)
+
+
+DocumentBlock = Block | FigureBlock
+
+
+@dataclass
 class Document:
     metadata: dict[str, Any] = field(default_factory=dict)
-    blocks: list[Block] = field(default_factory=list)
+    blocks: list[DocumentBlock] = field(default_factory=list)

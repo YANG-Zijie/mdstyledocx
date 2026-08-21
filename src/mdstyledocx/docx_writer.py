@@ -19,7 +19,16 @@ from docx.oxml.ns import qn
 from docx.shared import Pt, Twips
 from lxml import etree
 
-from mdstyledocx.model import Block, Document, ImageSpan, InlineElement, InlineSpan
+from mdstyledocx.model import (
+    Block,
+    Document,
+    DocumentBlock,
+    FigureBlock,
+    FigureReferenceSpan,
+    ImageSpan,
+    InlineElement,
+    InlineSpan,
+)
 from mdstyledocx.presets import Preset, Style
 
 TEMPLATE_TOKEN_RE = re.compile(r"\{(page|pages|title|date)\}")
@@ -33,6 +42,10 @@ WORD_2003_NS = "urn:schemas-microsoft-com:office:word"
 class BuildState:
     preset: Preset
     heading_counters: dict[int, int] = field(default_factory=dict)
+    figure_numbers: dict[int, int] = field(default_factory=dict)
+    figure_bookmarks: dict[int, str] = field(default_factory=dict)
+    figure_reference_numbers: dict[str, int] = field(default_factory=dict)
+    figure_reference_bookmarks: dict[str, str] = field(default_factory=dict)
 
 
 def build_docx(document: Document, preset: Preset) -> bytes:
@@ -41,7 +54,7 @@ def build_docx(document: Document, preset: Preset) -> bytes:
     _configure_page_content(word_document, document, preset)
     _set_core_properties(word_document, _document_title(document))
 
-    state = BuildState(preset=preset)
+    state = _create_build_state(document, preset)
     for index, block in enumerate(document.blocks):
         next_block = (
             document.blocks[index + 1]
@@ -53,6 +66,33 @@ def build_docx(document: Document, preset: Preset) -> bytes:
     buffer = BytesIO()
     word_document.save(buffer)
     return buffer.getvalue()
+
+
+def _create_build_state(document: Document, preset: Preset) -> BuildState:
+    figure_numbers: dict[int, int] = {}
+    figure_bookmarks: dict[int, str] = {}
+    figure_reference_numbers: dict[str, int] = {}
+    figure_reference_bookmarks: dict[str, str] = {}
+    for block in document.blocks:
+        if not isinstance(block, FigureBlock):
+            continue
+        number = len(figure_numbers) + 1
+        block_key = id(block)
+        bookmark = f"mdstyledocx_fig_{number}"
+        figure_numbers[block_key] = number
+        figure_bookmarks[block_key] = bookmark
+        if block.figure_id is not None:
+            if block.figure_id in figure_reference_numbers:
+                raise ValueError(f'Duplicate fig id "{block.figure_id}"')
+            figure_reference_numbers[block.figure_id] = number
+            figure_reference_bookmarks[block.figure_id] = bookmark
+    return BuildState(
+        preset=preset,
+        figure_numbers=figure_numbers,
+        figure_bookmarks=figure_bookmarks,
+        figure_reference_numbers=figure_reference_numbers,
+        figure_reference_bookmarks=figure_reference_bookmarks,
+    )
 
 
 def _configure_document(word_document: WordprocessingDocument, preset: Preset) -> None:
@@ -446,18 +486,25 @@ def _document_title(document: Document) -> str:
 
 def _append_block(
     word_document: WordprocessingDocument,
-    block: Block,
+    block: DocumentBlock,
     state: BuildState,
     *,
-    next_block: Block | None = None,
+    next_block: DocumentBlock | None = None,
 ) -> None:
     if block.kind == "page_break":
         word_document.add_page_break()
         return
 
     if block.kind == "table":
+        assert isinstance(block, Block)
         _append_table(word_document, block, state)
         return
+
+    if isinstance(block, FigureBlock):
+        _append_figure(word_document, block, state)
+        return
+
+    assert isinstance(block, Block)
 
     rendered_spans = _rendered_spans(block, state)
     style = _resolve_style(block, state.preset)
@@ -481,11 +528,91 @@ def _append_block(
     for span in rendered_spans:
         if isinstance(span, ImageSpan):
             _add_image_run(paragraph, span, state)
+        elif isinstance(span, FigureReferenceSpan):
+            _add_figure_reference_run(paragraph, span, state, style)
         elif span.text:
             _add_text_run(paragraph, span, style)
 
-    if not paragraph.runs:
+    if not paragraph._p.xpath(".//w:r"):
         paragraph.add_run("")
+
+
+def _append_figure(
+    word_document: WordprocessingDocument,
+    block: FigureBlock,
+    state: BuildState,
+) -> None:
+    body_style = state.preset.styles["body"]
+    image_style = replace(
+        body_style,
+        align="center",
+        first_line_indent=0,
+        left_indent=0,
+        hanging=0,
+        spacing_after=0,
+        line=240,
+        line_rule="auto",
+    )
+    image_paragraph = word_document.add_paragraph()
+    _apply_paragraph_style(image_paragraph, image_style)
+    _set_keep_with_next(image_paragraph)
+    _add_image_run(image_paragraph, block.image, state)
+    _add_figure_bookmark(image_paragraph, block, state)
+
+    caption_style = state.preset.styles.get(
+        "figure_caption",
+        replace(
+            body_style,
+            align="center",
+            first_line_indent=0,
+            left_indent=0,
+            hanging=0,
+        ),
+    )
+    caption = word_document.add_paragraph()
+    _apply_paragraph_style(caption, caption_style)
+    if block.legend:
+        _set_keep_with_next(caption)
+    number = state.figure_numbers[id(block)]
+    settings = state.preset.figure_settings
+    caption_text = f"{settings.label} {number}"
+    if block.title:
+        caption_text += f"{settings.title_separator}{block.title}"
+    _add_text_run(caption, InlineSpan(text=caption_text), caption_style)
+
+    if block.legend:
+        legend_style = state.preset.styles.get(
+            "figure_legend",
+            replace(
+                body_style,
+                first_line_indent=0,
+                left_indent=0,
+                hanging=0,
+            ),
+        )
+        legend = word_document.add_paragraph()
+        _apply_paragraph_style(legend, legend_style)
+        _add_text_run(legend, InlineSpan(text=block.legend), legend_style)
+
+
+def _add_figure_bookmark(paragraph, block: FigureBlock, state: BuildState) -> None:
+    block_key = id(block)
+    number = state.figure_numbers[block_key]
+    bookmark_start = OxmlElement("w:bookmarkStart")
+    bookmark_start.set(qn("w:id"), str(number))
+    bookmark_start.set(qn("w:name"), state.figure_bookmarks[block_key])
+    bookmark_end = OxmlElement("w:bookmarkEnd")
+    bookmark_end.set(qn("w:id"), str(number))
+
+    properties = paragraph._p.pPr
+    paragraph._p.insert(1 if properties is not None else 0, bookmark_start)
+    paragraph._p.append(bookmark_end)
+
+
+def _set_keep_with_next(paragraph) -> None:
+    properties = paragraph._p.get_or_add_pPr()
+    if properties.find(qn("w:keepNext")) is None:
+        properties.append(OxmlElement("w:keepNext"))
 
 
 def _append_table(
@@ -528,20 +655,22 @@ def _append_table(
                 align=alignment or ("center" if row_index == 0 else "left"),
                 bold=body_style.bold or row_index == 0,
             )
-            _populate_table_cell(cell, spans, cell_style)
+            _populate_table_cell(cell, spans, cell_style, state)
 
 
 def _populate_table_cell(
-    cell, spans: list[InlineElement], style: Style
+    cell, spans: list[InlineElement], style: Style, state: BuildState
 ) -> None:
     paragraph = cell.paragraphs[0]
     _apply_paragraph_style(paragraph, style)
     for span in spans:
         if isinstance(span, ImageSpan):
-            raise ValueError("Images inside Markdown table cells are not supported")
-        if span.text:
+            raise TypeError("Images inside Markdown table cells are not supported")
+        if isinstance(span, FigureReferenceSpan):
+            _add_figure_reference_run(paragraph, span, state, style)
+        elif span.text:
             _add_text_run(paragraph, span, style)
-    if not paragraph.runs:
+    if not paragraph._p.xpath(".//w:r"):
         paragraph.add_run("")
 
 
@@ -592,7 +721,11 @@ def _content_aware_column_widths(block: Block, preset: Preset) -> list[int]:
 
 def _inline_text(spans: list[InlineElement]) -> str:
     return "".join(
-        span.text if isinstance(span, InlineSpan) else span.alt_text
+        span.text
+        if isinstance(span, InlineSpan)
+        else span.alt_text
+        if isinstance(span, ImageSpan)
+        else span.figure_id
         for span in spans
     )
 
@@ -734,6 +867,27 @@ def _add_text_run(paragraph, span: InlineSpan, style: Style) -> None:
         bold=style.bold or span.bold,
         italic=style.italic or span.italic,
     )
+
+
+def _add_figure_reference_run(
+    paragraph,
+    span: FigureReferenceSpan,
+    state: BuildState,
+    style: Style,
+) -> None:
+    number = state.figure_reference_numbers.get(span.figure_id)
+    bookmark = state.figure_reference_bookmarks.get(span.figure_id)
+    if number is None or bookmark is None:
+        raise ValueError(f'Unknown ref_fig target "{span.figure_id}"')
+
+    run = paragraph.add_run(f"{state.preset.figure_settings.label} {number}")
+    _apply_run_style(run, style)
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("w:anchor"), bookmark)
+    hyperlink.set(qn("w:history"), "1")
+    paragraph._p.remove(run._r)
+    hyperlink.append(run._r)
+    paragraph._p.append(hyperlink)
 
 
 def _add_styled_run(paragraph, text: str, style: Style):

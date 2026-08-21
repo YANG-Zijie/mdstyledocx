@@ -18,6 +18,7 @@ from mdstyledocx import __version__
 from mdstyledocx.cli import main
 from mdstyledocx.docx_writer import build_docx
 from mdstyledocx.markdown import parse_markdown
+from mdstyledocx.model import FigureBlock, FigureReferenceSpan
 from mdstyledocx.presets import (
     list_presets,
     load_preset,
@@ -160,6 +161,75 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertEqual(table.table_rows[0][0][0].text, "序号")
         self.assertEqual(table.table_rows[3][1][0].text, "A | B")
 
+    def test_parse_aimd_compatible_figure_blocks_and_references(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            document = parse_markdown(
+                "参见 {{ref_fig|lab_team}}。\n\n"
+                "```fig\n"
+                "id: lab_team\n"
+                "src: images/team.png\n"
+                "title: 实验室团队合影\n"
+                "legend: |\n"
+                "  第一行说明。\n"
+                "  第二行说明。\n"
+                "```\n",
+                base_path=temp_path,
+            )
+
+        reference = document.blocks[0].spans[1]
+        figure = document.blocks[1]
+        self.assertIsInstance(reference, FigureReferenceSpan)
+        self.assertEqual(reference.figure_id, "lab_team")
+        self.assertIsInstance(figure, FigureBlock)
+        self.assertEqual(figure.figure_id, "lab_team")
+        self.assertEqual(figure.title, "实验室团队合影")
+        self.assertEqual(figure.legend, "第一行说明。\n第二行说明。")
+        self.assertEqual(
+            figure.image.path,
+            str((temp_path / "images/team.png").resolve()),
+        )
+
+    def test_parse_unreferenced_figure_without_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            document = parse_markdown(
+                "```fig\n"
+                "src: images/team.png\n"
+                "title: 实验室团队合影\n"
+                "```\n",
+                base_path=temp_path,
+            )
+
+        figure = document.blocks[0]
+        self.assertIsInstance(figure, FigureBlock)
+        self.assertIsNone(figure.figure_id)
+        self.assertEqual(figure.image.alt_text, "实验室团队合影")
+
+    def test_figure_contract_rejects_invalid_ids_fields_and_references(self) -> None:
+        duplicate = """```fig
+id: repeated
+src: first.png
+```
+
+```fig
+id: repeated
+src: second.png
+```
+"""
+        with self.assertRaisesRegex(ValueError, 'Duplicate fig id "repeated"'):
+            parse_markdown(duplicate)
+        with self.assertRaisesRegex(ValueError, "Unknown ref_fig target.*missing"):
+            parse_markdown("参见 {{ref_fig|missing}}。")
+        with self.assertRaisesRegex(ValueError, 'non-empty "src"'):
+            parse_markdown("```fig\nid: no_source\n```")
+        with self.assertRaisesRegex(ValueError, "Unsupported fig fields: width"):
+            parse_markdown("```fig\nid: extra\nsrc: image.png\nwidth: 10\n```")
+        with self.assertRaisesRegex(ValueError, "fig src must be a local image path"):
+            parse_markdown("```fig\nid: remote\nsrc: https://example.com/image.png\n```")
+        with self.assertRaisesRegex(ValueError, "Unterminated fig block"):
+            parse_markdown("```fig\nid: open\nsrc: image.png")
+
     def test_parse_nested_yaml_frontmatter(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN_WITH_PAGE_CONTENT)
 
@@ -199,6 +269,9 @@ class PresetLoadingTests(unittest.TestCase):
         self.assertEqual(schema["properties"]["schema_version"]["const"], 1)
         self.assertIn("style", schema["$defs"])
         self.assertIn("overflow_punctuation", schema["$defs"]["style"]["properties"])
+        self.assertIn("figure_caption", schema["properties"]["styles"]["properties"])
+        self.assertIn("figure_legend", schema["properties"]["styles"]["properties"])
+        self.assertIn("figure_settings", schema["properties"])
 
     def test_builtin_presets_are_loaded_from_spec_files(self) -> None:
         presets = dict(list_presets())
@@ -279,6 +352,18 @@ class PresetLoadingTests(unittest.TestCase):
         ):
             with self.subTest(preset=name):
                 self.assertEqual(load_preset(name).heading_numbering, {})
+
+    def test_presets_define_figure_labels_and_styles(self) -> None:
+        default = load_preset("default")
+        official = load_preset("official-doc-cn-system-fonts-12pt")
+
+        self.assertEqual(default.figure_settings.label, "Figure")
+        self.assertEqual(default.figure_settings.title_separator, ": ")
+        self.assertEqual(official.figure_settings.label, "图")
+        self.assertEqual(official.figure_settings.title_separator, "：")
+        self.assertEqual(official.styles["figure_caption"].size_half_points, 24)
+        self.assertEqual(official.styles["figure_caption"].align, "center")
+        self.assertEqual(official.styles["figure_legend"].first_line_indent, 0)
 
     def test_presets_define_page_content_styles(self) -> None:
         for name in (
@@ -560,6 +645,26 @@ class DocxGenerationTests(unittest.TestCase):
             self.assertTrue(output_path.exists())
             self.assertGreater(output_path.stat().st_size, 0)
 
+    def test_cli_does_not_write_an_omitted_figure_id_back_to_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            input_path = temp_path / "figures.md"
+            output_path = temp_path / "figures.docx"
+            image_path = temp_path / "figure.png"
+            image_path.write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            source = """```fig
+src: figure.png
+title: 实验室团队合影
+```
+"""
+            input_path.write_text(source, encoding="utf-8")
+
+            exit_code = main([str(input_path), "-o", str(output_path)])
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(output_path.exists())
+            self.assertEqual(input_path.read_text(encoding="utf-8"), source)
+
     def test_image_is_embedded_and_uses_single_spacing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -581,6 +686,64 @@ class DocxGenerationTests(unittest.TestCase):
             self.assertIn('relationships/image', rels)
             self.assertIn("media/image1.png", rels)
             self.assertIn("word/media/image1.png", media)
+
+    def test_structured_figures_render_numbered_captions_legends_and_links(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            image_path = temp_path / "figure.png"
+            image_path.write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            markdown = """参见{{ref_fig|platform}}。
+
+```fig
+src: figure.png
+title: 实验室团队合影
+```
+
+```fig
+id: platform
+src: figure.png
+title: 神农天然药物知识平台首页
+legend: 展示平台的主要检索入口和知识关联导航。
+```
+"""
+            document = parse_markdown(markdown, base_path=temp_path)
+            payload = build_docx(
+                document,
+                load_preset("official-doc-cn-system-fonts-12pt"),
+            )
+            word_document = WordDocument(io.BytesIO(payload))
+
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                xml = archive.read("word/document.xml").decode("utf-8")
+                media = {
+                    name for name in archive.namelist() if name.startswith("word/media/")
+                }
+
+        visible_text = re.sub(r"<[^>]+>", "", xml)
+        self.assertIn("参见图 2。", visible_text)
+        self.assertIn("图 1：实验室团队合影", visible_text)
+        self.assertIn("图 2：神农天然药物知识平台首页", visible_text)
+        self.assertIn("展示平台的主要检索入口和知识关联导航。", visible_text)
+        self.assertIn('w:anchor="mdstyledocx_fig_2"', xml)
+        self.assertIn('w:name="mdstyledocx_fig_1"', xml)
+        self.assertIn('w:name="mdstyledocx_fig_2"', xml)
+        self.assertGreaterEqual(xml.count("<w:keepNext"), 3)
+        self.assertEqual(xml.count("<w:drawing>"), 2)
+        self.assertEqual(len(media), 1)
+
+        caption = next(
+            paragraph
+            for paragraph in word_document.paragraphs
+            if paragraph.text == "图 2：神农天然药物知识平台首页"
+        )
+        legend = next(
+            paragraph
+            for paragraph in word_document.paragraphs
+            if paragraph.text == "展示平台的主要检索入口和知识关联导航。"
+        )
+        self.assertEqual(caption.alignment, WD_ALIGN_PARAGRAPH.CENTER)
+        self.assertEqual(caption.paragraph_format.first_line_indent.twips, 0)
+        self.assertEqual(legend.paragraph_format.first_line_indent.twips, 0)
 
     def test_yaml_frontmatter_adds_header_footer_fields_and_watermark(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN_WITH_PAGE_CONTENT)

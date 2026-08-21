@@ -36,7 +36,9 @@
         "heading1": {"$ref": "#/$defs/style"},
         "heading2": {"$ref": "#/$defs/style"},
         "heading3": {"$ref": "#/$defs/style"},
-        "body": {"$ref": "#/$defs/style"}
+        "body": {"$ref": "#/$defs/style"},
+        "figure_caption": {"$ref": "#/$defs/style"},
+        "figure_legend": {"$ref": "#/$defs/style"}
       }
     },
     "page_styles": {
@@ -73,6 +75,14 @@
         "base_left_indent": {"$ref": "#/$defs/nonNegativeTwips"},
         "hanging": {"$ref": "#/$defs/nonNegativeTwips"},
         "level_step": {"$ref": "#/$defs/nonNegativeTwips"}
+      }
+    },
+    "figure_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "label": {"type": "string", "minLength": 1},
+        "title_separator": {"type": "string"}
       }
     },
     "heading_numbering": {

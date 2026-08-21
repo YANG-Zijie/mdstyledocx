@@ -53,9 +53,12 @@ watermark:
 - 普通段落：正文内容，每段空一行
 - `| ... |`：原生 Word 表格；表头加粗并跨页重复，列宽根据内容分配后允许 Word 自动调整
 - `![说明](./image.png)`：插入本地图片，按嵌入式输出；图片所在段落改为单倍行距
+- fenced `fig`：插入自动编号并带图题、图例和可选稳定 ID 的本地图片；按“图 1：图题”输出，正文可使用 `{{ref_fig|ID}}` 引用显式 ID
 - `<!-- pagebreak -->`：需要分页时显式插入
 
 标题编号属于文档内容，由 Markdown 显式写入。导出器不会自动添加、删除或重排编号，因此同一级别可以同时使用有编号和无编号标题。
+
+`fig` / `ref_fig` 源自 [Airalogy Markdown（AIMD）的结构化图片语法](https://github.com/airalogy/airalogy/blob/main/docs/airalogy/en/syntax/fig.md)。不参与引用的图片可省略 `id`；严格的 AIMD 文件仍应显式填写。普通 `![](...)` 图片不参与编号。
 
 ## 示例
 

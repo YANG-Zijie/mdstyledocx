@@ -6,15 +6,32 @@ from typing import Any
 
 import yaml
 
-from mdstyledocx.model import Block, Document, ImageSpan, InlineElement, InlineSpan
+from mdstyledocx.model import (
+    Block,
+    Document,
+    DocumentBlock,
+    FigureBlock,
+    FigureReferenceSpan,
+    ImageSpan,
+    InlineElement,
+    InlineSpan,
+)
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 BULLET_RE = re.compile(r"^(\s*)[-*+]\s+(.*?)\s*$")
 ORDERED_RE = re.compile(r"^(\s*)(\d+)\.\s+(.*?)\s*$")
-INLINE_TOKEN_RE = re.compile(r"(!\[[^\]]*]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)")
+INLINE_TOKEN_RE = re.compile(
+    r"(!\[[^\]]*]\([^)]+\)|\{\{ref_fig\|[^{}|]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)"
+)
 IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+FIGURE_REFERENCE_RE = re.compile(r"^\{\{ref_fig\|([^{}|]+)\}\}$")
+# Structured figures derive from AIMD; mdstyledocx additionally permits an
+# unreferenced figure to omit id without rewriting the Markdown source.
+FIGURE_FENCE_RE = re.compile(r"^\s*```fig\s*$")
+FENCE_END_RE = re.compile(r"^\s*```\s*$")
 PAGEBREAK_MARKERS = {"<!-- pagebreak -->", "<!--pagebreak-->", "\f", "\\f"}
 TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
+FIGURE_FIELDS = {"id", "src", "title", "legend"}
 
 
 def parse_markdown(text: str, base_path: Path | None = None) -> Document:
@@ -49,7 +66,9 @@ def parse_markdown(text: str, base_path: Path | None = None) -> Document:
         )
         blocks.insert(0 if title_index is None else title_index + 1, date_block)
 
-    return Document(metadata=metadata, blocks=blocks)
+    document = Document(metadata=metadata, blocks=blocks)
+    _validate_figure_references(document)
+    return document
 
 
 def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement]:
@@ -58,6 +77,7 @@ def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement
         if not token:
             continue
         image_match = IMAGE_RE.match(token)
+        figure_reference_match = FIGURE_REFERENCE_RE.match(token)
         if image_match:
             spans.append(
                 ImageSpan(
@@ -65,6 +85,11 @@ def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement
                     alt_text=image_match.group(1),
                 )
             )
+        elif figure_reference_match:
+            figure_id = figure_reference_match.group(1).strip()
+            if not figure_id:
+                raise ValueError("ref_fig must contain a non-empty figure id")
+            spans.append(FigureReferenceSpan(figure_id=figure_id))
         elif token.startswith("**") and token.endswith("**") and len(token) > 4:
             spans.append(InlineSpan(text=token[2:-2], bold=True))
         elif token.startswith("*") and token.endswith("*") and len(token) > 2:
@@ -97,8 +122,8 @@ def _parse_frontmatter(lines: list[str]) -> tuple[dict[str, Any], list[str]]:
     raise ValueError("Unterminated YAML frontmatter")
 
 
-def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
-    blocks: list[Block] = []
+def _parse_blocks(lines: list[str], base_path: Path | None) -> list[DocumentBlock]:
+    blocks: list[DocumentBlock] = []
     index = 0
 
     while index < len(lines):
@@ -112,6 +137,12 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[Block]:
         if stripped in PAGEBREAK_MARKERS:
             blocks.append(Block(kind="page_break"))
             index += 1
+            continue
+
+        figure_result = _parse_figure(lines, index, base_path)
+        if figure_result is not None:
+            figure, index = figure_result
+            blocks.append(figure)
             continue
 
         heading_match = HEADING_RE.match(raw)
@@ -178,6 +209,8 @@ def _starts_new_block(lines: list[str], index: int) -> bool:
         return True
     if stripped in PAGEBREAK_MARKERS:
         return True
+    if FIGURE_FENCE_RE.match(line):
+        return True
     if HEADING_RE.match(line):
         return True
     if _is_table_start(lines, index):
@@ -185,6 +218,106 @@ def _starts_new_block(lines: list[str], index: int) -> bool:
     if BULLET_RE.match(line):
         return True
     return bool(ORDERED_RE.match(line))
+
+
+def _parse_figure(
+    lines: list[str], index: int, base_path: Path | None
+) -> tuple[FigureBlock, int] | None:
+    if not FIGURE_FENCE_RE.match(lines[index]):
+        return None
+
+    closing_index = next(
+        (
+            candidate
+            for candidate in range(index + 1, len(lines))
+            if FENCE_END_RE.match(lines[candidate])
+        ),
+        None,
+    )
+    if closing_index is None:
+        raise ValueError("Unterminated fig block")
+
+    source = "\n".join(lines[index + 1 : closing_index])
+    try:
+        data = yaml.safe_load(source) or {}
+    except yaml.YAMLError as error:
+        raise ValueError(f"Invalid fig YAML: {error}") from error
+    if not isinstance(data, dict):
+        raise TypeError("fig block must contain a YAML mapping")
+
+    unsupported = sorted(set(data) - FIGURE_FIELDS)
+    if unsupported:
+        raise ValueError(f"Unsupported fig fields: {', '.join(unsupported)}")
+
+    figure_id = _optional_figure_string(data, "id")
+    src = _required_figure_string(data, "src")
+    if "://" in src or src.startswith("airalogy.id.file."):
+        raise ValueError(
+            "mdstyledocx fig src must be a local image path; resolve remote or "
+            "Airalogy-managed assets before conversion"
+        )
+    title = _optional_figure_string(data, "title")
+    legend = _optional_figure_string(data, "legend")
+    return (
+        FigureBlock(
+            figure_id=figure_id,
+            image=ImageSpan(
+                path=_resolve_asset_path(src, base_path),
+                alt_text=title or Path(src).stem,
+            ),
+            title=title,
+            legend=legend,
+        ),
+        closing_index + 1,
+    )
+
+
+def _required_figure_string(data: dict[str, Any], field_name: str) -> str:
+    value = _optional_figure_string(data, field_name)
+    if value is None:
+        raise ValueError(f'fig block must have non-empty "{field_name}" field')
+    return value
+
+
+def _optional_figure_string(data: dict[str, Any], field_name: str) -> str | None:
+    value = data.get(field_name)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f'fig field "{field_name}" must be a string')
+    normalized = value.strip()
+    return normalized or None
+
+
+def _validate_figure_references(document: Document) -> None:
+    figure_ids: set[str] = set()
+    references: list[str] = []
+
+    for block in document.blocks:
+        if isinstance(block, FigureBlock):
+            if block.figure_id is None:
+                continue
+            if block.figure_id in figure_ids:
+                raise ValueError(f'Duplicate fig id "{block.figure_id}"')
+            figure_ids.add(block.figure_id)
+            continue
+
+        references.extend(_figure_reference_ids(block.spans))
+        for row in block.table_rows:
+            for cell in row:
+                references.extend(_figure_reference_ids(cell))
+
+    missing = sorted(set(references) - figure_ids)
+    if missing:
+        raise ValueError(f"Unknown ref_fig target(s): {', '.join(missing)}")
+
+
+def _figure_reference_ids(spans: list[InlineElement]) -> list[str]:
+    return [
+        span.figure_id
+        for span in spans
+        if isinstance(span, FigureReferenceSpan)
+    ]
 
 
 def _parse_table(
@@ -237,9 +370,7 @@ def _is_table_start(lines: list[str], index: int) -> bool:
 
 
 def _split_table_row(line: str) -> list[str]:
-    source = line.strip()
-    if source.startswith("|"):
-        source = source[1:]
+    source = line.strip().removeprefix("|")
     if source.endswith("|") and not source.endswith("\\|"):
         source = source[:-1]
 

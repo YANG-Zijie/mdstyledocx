@@ -5,6 +5,7 @@
 ## Unreleased
 
 - Add a repository-managed pre-push preflight for workflow action references, tests, and distribution builds.
+- Add AIMD-derived fenced `fig` blocks and `ref_fig` references with local image resolution, automatic numbering, captions, legends, Word bookmarks, internal links, validation, and preset-controlled labels and styles. Unreferenced figures may omit `id` without modifying the Markdown source.
 
 ## 0.2.0 - 2026-08-20
 
