@@ -33,6 +33,7 @@ class Block:
     kind: str
     spans: list[InlineElement] = field(default_factory=list)
     level: int = 0
+    blank_lines: int = 1
     list_kind: str | None = None
     list_level: int = 0
     number: int | None = None

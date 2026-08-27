@@ -139,6 +139,29 @@ class MarkdownParsingTests(unittest.TestCase):
         self.assertEqual(document.blocks[4].kind, "list_item")
         self.assertEqual(document.blocks[6].kind, "page_break")
 
+    def test_parse_blankline_markers_with_default_and_explicit_counts(self) -> None:
+        document = parse_markdown(
+            "第一段。\n<!-- blankline -->\n<!--blankline: 3-->\n第二段。"
+        )
+
+        self.assertEqual(
+            [block.kind for block in document.blocks],
+            ["paragraph", "blank_line", "blank_line", "paragraph"],
+        )
+        self.assertEqual(document.blocks[1].blank_lines, 1)
+        self.assertEqual(document.blocks[2].blank_lines, 3)
+
+    def test_blankline_marker_rejects_invalid_counts_and_syntax(self) -> None:
+        for marker in (
+            "<!-- blankline: 0 -->",
+            "<!-- blankline: -1 -->",
+            "<!-- blankline: 21 -->",
+            "<!-- blankline: many -->",
+        ):
+            with self.subTest(marker=marker):
+                with self.assertRaisesRegex(ValueError, "[Bb]lankline"):
+                    parse_markdown(marker)
+
     def test_parse_markdown_image_span_uses_base_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -353,6 +376,53 @@ class PresetLoadingTests(unittest.TestCase):
             with self.subTest(preset=name):
                 self.assertEqual(load_preset(name).heading_numbering, {})
 
+    def test_official_doc_presets_format_lists_as_natural_paragraphs(self) -> None:
+        expected_indents = {
+            "official-doc-cn": 640,
+            "official-doc-cn-12pt": 480,
+            "official-doc-cn-system-fonts": 640,
+            "official-doc-cn-system-fonts-12pt": 480,
+        }
+
+        for name, expected_indent in expected_indents.items():
+            with self.subTest(preset=name):
+                preset = load_preset(name)
+                self.assertEqual(preset.list_settings.base_left_indent, 0)
+                self.assertEqual(
+                    preset.list_settings.first_line_indent,
+                    expected_indent,
+                )
+                self.assertEqual(preset.list_settings.hanging, 0)
+                self.assertEqual(preset.list_settings.level_step, 0)
+
+                payload = build_docx(parse_markdown(SAMPLE_MARKDOWN), preset)
+                word_document = WordDocument(io.BytesIO(payload))
+                list_item = next(
+                    paragraph
+                    for paragraph in word_document.paragraphs
+                    if paragraph.text == "1. 统一内容源。"
+                )
+                self.assertEqual(list_item.paragraph_format.left_indent.twips, 0)
+                self.assertEqual(
+                    list_item.paragraph_format.first_line_indent.twips,
+                    expected_indent,
+                )
+
+    def test_default_preset_keeps_hanging_list_layout(self) -> None:
+        payload = build_docx(
+            parse_markdown(SAMPLE_MARKDOWN),
+            load_preset("default"),
+        )
+        word_document = WordDocument(io.BytesIO(payload))
+        list_item = next(
+            paragraph
+            for paragraph in word_document.paragraphs
+            if paragraph.text == "1. 统一内容源。"
+        )
+
+        self.assertEqual(list_item.paragraph_format.left_indent.twips, 720)
+        self.assertEqual(list_item.paragraph_format.first_line_indent.twips, -360)
+
     def test_presets_define_figure_labels_and_styles(self) -> None:
         default = load_preset("default")
         official = load_preset("official-doc-cn-system-fonts-12pt")
@@ -448,6 +518,24 @@ class PresetLoadingTests(unittest.TestCase):
 
 
 class DocxGenerationTests(unittest.TestCase):
+    def test_blankline_marker_emits_empty_body_lines(self) -> None:
+        document = parse_markdown(
+            "第一段。\n\n<!-- blankline: 2 -->\n\n第二段。"
+        )
+        payload = build_docx(
+            document,
+            load_preset("official-doc-cn-system-fonts-12pt"),
+        )
+        word_document = WordDocument(io.BytesIO(payload))
+
+        self.assertEqual(
+            [paragraph.text for paragraph in word_document.paragraphs],
+            ["第一段。", "", "", "第二段。"],
+        )
+        for paragraph in word_document.paragraphs[1:3]:
+            self.assertEqual(paragraph.paragraph_format.line_spacing.pt, 20)
+            self.assertEqual(paragraph.paragraph_format.first_line_indent.twips, 0)
+
     def test_official_doc_preset_contains_expected_markers(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN)
         payload = build_docx(document, load_preset("official-doc-cn"))

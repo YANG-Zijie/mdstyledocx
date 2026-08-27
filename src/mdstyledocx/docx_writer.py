@@ -495,6 +495,14 @@ def _append_block(
         word_document.add_page_break()
         return
 
+    if block.kind == "blank_line":
+        assert isinstance(block, Block)
+        style = _resolve_style(block, state.preset)
+        for _ in range(block.blank_lines):
+            paragraph = word_document.add_paragraph()
+            _apply_paragraph_style(paragraph, style)
+        return
+
     if block.kind == "table":
         assert isinstance(block, Block)
         _append_table(word_document, block, state)
@@ -757,6 +765,14 @@ def _resolve_style(block: Block, preset: Preset) -> Style:
             spacing_after=preset.styles["title"].spacing_after,
         )
 
+    if block.kind == "blank_line":
+        return replace(
+            base,
+            first_line_indent=0,
+            left_indent=0,
+            hanging=0,
+        )
+
     if block.kind == "list_item":
         left_indent = (
             preset.list_settings.base_left_indent
@@ -764,7 +780,7 @@ def _resolve_style(block: Block, preset: Preset) -> Style:
         )
         return replace(
             base,
-            first_line_indent=0,
+            first_line_indent=preset.list_settings.first_line_indent,
             left_indent=left_indent,
             hanging=preset.list_settings.hanging,
         )

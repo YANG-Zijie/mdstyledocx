@@ -91,9 +91,10 @@
     "rotation": -45
   },
   "list_settings": {
-    "base_left_indent": 720,
-    "hanging": 360,
-    "level_step": 360
+    "base_left_indent": 0,
+    "first_line_indent": 640,
+    "hanging": 0,
+    "level_step": 0
   },
   "figure_settings": {
     "label": "图",

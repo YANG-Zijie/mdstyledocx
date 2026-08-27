@@ -73,6 +73,7 @@
       "additionalProperties": false,
       "properties": {
         "base_left_indent": {"$ref": "#/$defs/nonNegativeTwips"},
+        "first_line_indent": {"$ref": "#/$defs/nonNegativeTwips"},
         "hanging": {"$ref": "#/$defs/nonNegativeTwips"},
         "level_step": {"$ref": "#/$defs/nonNegativeTwips"}
       }

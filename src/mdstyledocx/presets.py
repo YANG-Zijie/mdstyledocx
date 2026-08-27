@@ -74,6 +74,7 @@ class Style:
 @dataclass
 class ListSettings:
     base_left_indent: int = 720
+    first_line_indent: int = 0
     hanging: int = 360
     level_step: int = 360
 
@@ -380,8 +381,17 @@ def _validate_preset(preset: Preset) -> None:
         "List base_left_indent",
         minimum=0,
     )
+    _validate_integer(
+        preset.list_settings.first_line_indent,
+        "List first_line_indent",
+        minimum=0,
+    )
     _validate_integer(preset.list_settings.hanging, "List hanging", minimum=0)
     _validate_integer(preset.list_settings.level_step, "List level_step", minimum=0)
+    if preset.list_settings.first_line_indent and preset.list_settings.hanging:
+        raise ValueError(
+            "List first_line_indent and hanging cannot both be non-zero"
+        )
 
     if (
         not isinstance(preset.figure_settings.label, str)

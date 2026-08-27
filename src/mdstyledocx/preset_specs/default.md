@@ -44,6 +44,7 @@ watermark:
 - `| ... |`：表格；首行加粗，列宽根据内容自动分配
 - `![说明](./image.png)`：插入不编号的本地图片
 - fenced `fig`：插入自动编号并带图题、图例和可选稳定 ID 的本地图片；正文可使用 `{{ref_fig|ID}}` 引用显式 ID
+- `<!-- blankline -->` / `<!-- blankline: N -->`：空一行或指定 `1–20` 行
 - `<!-- pagebreak -->`：分页
 
 `fig` / `ref_fig` 源自 [Airalogy Markdown（AIMD）的结构化图片语法](https://github.com/airalogy/airalogy/blob/main/docs/airalogy/en/syntax/fig.md)。不参与引用的图片可省略 `id`；严格的 AIMD 文件仍应显式填写。`default` preset 使用 `Figure 1: Title` 格式。

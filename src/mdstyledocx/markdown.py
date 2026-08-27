@@ -20,6 +20,10 @@ from mdstyledocx.model import (
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 BULLET_RE = re.compile(r"^(\s*)[-*+]\s+(.*?)\s*$")
 ORDERED_RE = re.compile(r"^(\s*)(\d+)\.\s+(.*?)\s*$")
+BLANKLINE_MARKER_RE = re.compile(
+    r"^<!--\s*blankline(?:\s*:\s*([+-]?\d+))?\s*-->$"
+)
+BLANKLINE_PREFIX_RE = re.compile(r"^<!--\s*blankline\b")
 INLINE_TOKEN_RE = re.compile(
     r"(!\[[^\]]*]\([^)]+\)|\{\{ref_fig\|[^{}|]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)"
 )
@@ -30,6 +34,7 @@ FIGURE_REFERENCE_RE = re.compile(r"^\{\{ref_fig\|([^{}|]+)\}\}$")
 FIGURE_FENCE_RE = re.compile(r"^\s*```fig\s*$")
 FENCE_END_RE = re.compile(r"^\s*```\s*$")
 PAGEBREAK_MARKERS = {"<!-- pagebreak -->", "<!--pagebreak-->", "\f", "\\f"}
+MAX_BLANK_LINES = 20
 TABLE_SEPARATOR_RE = re.compile(r"^:?-{3,}:?$")
 FIGURE_FIELDS = {"id", "src", "title", "legend"}
 
@@ -134,6 +139,12 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[DocumentBloc
             index += 1
             continue
 
+        blank_lines = _parse_blankline_marker(stripped)
+        if blank_lines is not None:
+            blocks.append(Block(kind="blank_line", blank_lines=blank_lines))
+            index += 1
+            continue
+
         if stripped in PAGEBREAK_MARKERS:
             blocks.append(Block(kind="page_break"))
             index += 1
@@ -207,6 +218,8 @@ def _starts_new_block(lines: list[str], index: int) -> bool:
     stripped = line.strip()
     if not stripped:
         return True
+    if BLANKLINE_PREFIX_RE.match(stripped):
+        return True
     if stripped in PAGEBREAK_MARKERS:
         return True
     if FIGURE_FENCE_RE.match(line):
@@ -218,6 +231,24 @@ def _starts_new_block(lines: list[str], index: int) -> bool:
     if BULLET_RE.match(line):
         return True
     return bool(ORDERED_RE.match(line))
+
+
+def _parse_blankline_marker(marker: str) -> int | None:
+    match = BLANKLINE_MARKER_RE.match(marker)
+    if match is None:
+        if BLANKLINE_PREFIX_RE.match(marker):
+            raise ValueError(
+                "Invalid blankline marker; use '<!-- blankline -->' or "
+                "'<!-- blankline: N -->'"
+            )
+        return None
+
+    count = int(match.group(1) or 1)
+    if count < 1 or count > MAX_BLANK_LINES:
+        raise ValueError(
+            f"Blankline count must be between 1 and {MAX_BLANK_LINES}"
+        )
+    return count
 
 
 def _parse_figure(

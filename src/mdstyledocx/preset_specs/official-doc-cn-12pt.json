@@ -6,6 +6,9 @@
   "paragraph_defaults": {
     "line": 400
   },
+  "list_settings": {
+    "first_line_indent": 480
+  },
   "styles": {
     "title": {
       "size_half_points": 36,

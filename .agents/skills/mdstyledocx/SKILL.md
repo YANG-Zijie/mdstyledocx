@@ -42,7 +42,7 @@ Do not invent preset names or rely on remembered rules when the installed CLI ca
 
 - Follow the selected preset's reported heading and numbering rules.
 - In the `official-doc-cn*` presets, heading numbers are source content rather than automatic layout. Write `一、`, `（一）`, or `1.` explicitly only where the document requires them, and leave intentionally unnumbered headings unnumbered. Do not expect the CLI to infer or resequence them. Automatic heading numbering applies only when a custom preset explicitly defines `heading_numbering`.
-- Use headings, paragraphs, ordered or unordered lists, pipe-style Markdown tables, explicit `<!-- pagebreak -->` markers, and local Markdown images.
+- Use headings, paragraphs, ordered or unordered lists, pipe-style Markdown tables, explicit `<!-- blankline -->` or `<!-- blankline: N -->` markers for `1–20` blank body lines, explicit `<!-- pagebreak -->` markers, and local Markdown images.
 - Use an AIMD-derived fenced `fig` block when an image needs automatic numbering, a title, a legend, or a stable reference target. An unreferenced figure may omit `id`; mdstyledocx assigns an internal identifier without rewriting the Markdown source. To use `{{ref_fig|FIGURE_ID}}` in prose, give the target figure an explicit unique `id`. Strict AIMD files still require every figure to declare `id`. Resolve `src` relative to the Markdown file. Ordinary `![](...)` images remain unnumbered.
 - When the user requests page content, read [references/page-content.md](references/page-content.md), then use its nested YAML frontmatter contract.
 - Keep page-content styling in the preset. Do not add font, size, color, opacity, rotation, or positioning fields to Markdown frontmatter.
