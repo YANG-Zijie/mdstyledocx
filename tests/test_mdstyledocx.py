@@ -158,9 +158,10 @@ class MarkdownParsingTests(unittest.TestCase):
             "<!-- blankline: 21 -->",
             "<!-- blankline: many -->",
         ):
-            with self.subTest(marker=marker):
-                with self.assertRaisesRegex(ValueError, "[Bb]lankline"):
-                    parse_markdown(marker)
+            with self.subTest(marker=marker), self.assertRaisesRegex(
+                ValueError, "[Bb]lankline"
+            ):
+                parse_markdown(marker)
 
     def test_parse_markdown_image_span_uses_base_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

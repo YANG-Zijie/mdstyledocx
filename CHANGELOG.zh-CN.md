@@ -2,10 +2,13 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## 尚未发布
+## 0.3.0 - 2026-08-27
 
 - 新增由仓库管理的 pre-push 预检，统一验证工作流 Action 引用、运行测试并构建发布包。
 - 新增源自 Airalogy Markdown（AIMD）的 fenced `fig` 和 `ref_fig` 语法，支持本地图片解析、自动编号、图题、图例、Word 书签与内部链接、结构校验以及由 preset 控制的图号和样式；不参与引用的图片可以省略 `id`，且不会改写 Markdown 源文件。
+- 新增显式 `<!-- blankline -->` 和 `<!-- blankline: N -->` 标记，可按当前 preset 的正文行高插入一行或指定 `1–20` 行空白。
+- 中文公文 preset 将列表项按自然段排版：首行缩进两字符、回行顶格；`default` preset 继续保留悬挂缩进。
+- preset 的列表设置新增可选且经过校验的 `first_line_indent` 字段，并禁止与悬挂缩进同时启用。
 
 ## 0.2.0 - 2026-08-20
 

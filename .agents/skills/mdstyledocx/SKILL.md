@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-The canonical preset names and page-content features in this skill require `mdstyledocx >= 0.2.0`. Use one runner consistently for the task:
+The canonical preset names, page-content features, explicit blank-line markers, and official-document list layout in this skill require `mdstyledocx >= 0.3.0`. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.2.0 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.2.0" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.3.0 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.3.0" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 

@@ -2,10 +2,13 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## Unreleased
+## 0.3.0 - 2026-08-27
 
 - Add a repository-managed pre-push preflight for workflow action references, tests, and distribution builds.
 - Add AIMD-derived fenced `fig` blocks and `ref_fig` references with local image resolution, automatic numbering, captions, legends, Word bookmarks, internal links, validation, and preset-controlled labels and styles. Unreferenced figures may omit `id` without modifying the Markdown source.
+- Add explicit `<!-- blankline -->` and `<!-- blankline: N -->` markers for inserting one or `1–20` blank body lines at the active preset's line height.
+- Format list items in the Chinese official-document presets as natural paragraphs with a two-character first-line indent and flush-left continuation lines, while preserving hanging indentation in the default preset.
+- Extend preset list settings with an optional validated `first_line_indent` value that is mutually exclusive with hanging indentation.
 
 ## 0.2.0 - 2026-08-20
 
