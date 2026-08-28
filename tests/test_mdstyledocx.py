@@ -123,6 +123,17 @@ SAMPLE_MARKDOWN_WITH_TABLE = """# 项目情况表
 | 3 | A \\| B |
 """
 
+SAMPLE_MARKDOWN_WITH_ADJACENT_TABLES = """| 费用项目 | 测算标准 | 单只小鼠金额 |
+| --- | ---: | ---: |
+| 实验小鼠购置 | 100 元/只 | 100 元 |
+| 合计 |  | 100 元 |
+
+| 测算项目 | 计算方式 | 测算金额 |
+| --- | ---: | ---: |
+| 小鼠数量 | 738 × 3 | 2,214 只 |
+| 样品制备 | 2,214 只 × 560 元/只 | 1,239,840 元 |
+"""
+
 PNG_1X1_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+yF9kAAAAASUVORK5CYII="
 )
@@ -712,6 +723,23 @@ class DocxGenerationTests(unittest.TestCase):
             xml = archive.read("word/document.xml").decode("utf-8")
         self.assertIn('<w:tblLayout w:type="autofit"', xml)
         self.assertIn('<w:tblHeader w:val="true"', xml)
+
+    def test_adjacent_markdown_tables_are_separated_by_one_body_line(self) -> None:
+        document = parse_markdown(SAMPLE_MARKDOWN_WITH_ADJACENT_TABLES)
+        payload = build_docx(
+            document, load_preset("official-doc-cn-system-fonts-12pt")
+        )
+        word_document = WordDocument(io.BytesIO(payload))
+
+        self.assertEqual(len(word_document.tables), 2)
+        self.assertEqual(len(word_document.paragraphs), 1)
+        separator = word_document.paragraphs[0]
+        self.assertEqual(separator.text, "")
+        self.assertEqual(separator.paragraph_format.line_spacing.twips, 400)
+        self.assertEqual(
+            [child.tag for child in word_document._element.body],
+            [qn("w:tbl"), qn("w:p"), qn("w:tbl"), qn("w:sectPr")],
+        )
 
     def test_cli_writes_docx_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -506,6 +506,8 @@ def _append_block(
     if block.kind == "table":
         assert isinstance(block, Block)
         _append_table(word_document, block, state)
+        if next_block is not None and next_block.kind == "table":
+            _append_table_separator(word_document, state.preset)
         return
 
     if isinstance(block, FigureBlock):
@@ -664,6 +666,19 @@ def _append_table(
                 bold=body_style.bold or row_index == 0,
             )
             _populate_table_cell(cell, spans, cell_style, state)
+
+
+def _append_table_separator(
+    word_document: WordprocessingDocument, preset: Preset
+) -> None:
+    style = replace(
+        preset.styles["body"],
+        first_line_indent=0,
+        left_indent=0,
+        hanging=0,
+    )
+    paragraph = word_document.add_paragraph()
+    _apply_paragraph_style(paragraph, style)
 
 
 def _populate_table_cell(

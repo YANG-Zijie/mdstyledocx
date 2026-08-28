@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+- Keep consecutive Markdown tables visually separate in DOCX output by inserting one empty paragraph at the active preset's body line height.
+
 ## 0.3.0 - 2026-08-27
 
 - Add a repository-managed pre-push preflight for workflow action references, tests, and distribution builds.

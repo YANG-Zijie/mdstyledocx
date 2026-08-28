@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## 尚未发布
+
+- 在连续的 Markdown 表格之间按当前 preset 的正文行高插入一个空段落，避免导出为 DOCX 后两张表格黏连。
+
 ## 0.3.0 - 2026-08-27
 
 - 新增由仓库管理的 pre-push 预检，统一验证工作流 Action 引用、运行测试并构建发布包。
