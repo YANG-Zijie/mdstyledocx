@@ -12,6 +12,7 @@ from mdstyledocx.model import (
     DocumentBlock,
     FigureBlock,
     FigureReferenceSpan,
+    HyperlinkSpan,
     ImageSpan,
     InlineElement,
     InlineSpan,
@@ -25,9 +26,10 @@ BLANKLINE_MARKER_RE = re.compile(
 )
 BLANKLINE_PREFIX_RE = re.compile(r"^<!--\s*blankline\b")
 INLINE_TOKEN_RE = re.compile(
-    r"(!\[[^\]]*]\([^)]+\)|\{\{ref_fig\|[^{}|]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)"
+    r"(!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|\{\{ref_fig\|[^{}|]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)"
 )
 IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
+HYPERLINK_RE = re.compile(r"^\[([^\]]+)]\(([^)]+)\)$")
 FIGURE_REFERENCE_RE = re.compile(r"^\{\{ref_fig\|([^{}|]+)\}\}$")
 # Structured figures derive from AIMD; mdstyledocx additionally permits an
 # unreferenced figure to omit id without rewriting the Markdown source.
@@ -82,12 +84,20 @@ def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement
         if not token:
             continue
         image_match = IMAGE_RE.match(token)
+        hyperlink_match = HYPERLINK_RE.match(token)
         figure_reference_match = FIGURE_REFERENCE_RE.match(token)
         if image_match:
             spans.append(
                 ImageSpan(
                     path=_resolve_asset_path(image_match.group(2), base_path),
                     alt_text=image_match.group(1),
+                )
+            )
+        elif hyperlink_match:
+            spans.append(
+                HyperlinkSpan(
+                    text=hyperlink_match.group(1),
+                    target=hyperlink_match.group(2),
                 )
             )
         elif figure_reference_match:

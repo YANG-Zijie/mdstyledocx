@@ -18,7 +18,7 @@ from mdstyledocx import __version__
 from mdstyledocx.cli import main
 from mdstyledocx.docx_writer import build_docx
 from mdstyledocx.markdown import parse_markdown
-from mdstyledocx.model import FigureBlock, FigureReferenceSpan
+from mdstyledocx.model import FigureBlock, FigureReferenceSpan, HyperlinkSpan
 from mdstyledocx.presets import (
     list_presets,
     load_preset,
@@ -134,6 +134,19 @@ SAMPLE_MARKDOWN_WITH_ADJACENT_TABLES = """| 费用项目 | 测算标准 | 单只
 | 样品制备 | 2,214 只 × 560 元/只 | 1,239,840 元 |
 """
 
+ICH_LINK_TEXT = "ICH M3(R2)：支持药物临床试验和上市许可的非临床安全性研究"
+ICH_LINK_TARGET = (
+    "https://database.ich.org/sites/default/files/M3_R2__Guideline.pdf"
+)
+SAMPLE_MARKDOWN_WITH_HYPERLINKS = f"""- [{ICH_LINK_TEXT}]({ICH_LINK_TARGET})
+
+• [{ICH_LINK_TEXT}]({ICH_LINK_TARGET})
+
+| 参考资料 |
+| --- |
+| [{ICH_LINK_TEXT}]({ICH_LINK_TARGET}) |
+"""
+
 PNG_1X1_BASE64 = (
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+yF9kAAAAASUVORK5CYII="
 )
@@ -185,6 +198,17 @@ class MarkdownParsingTests(unittest.TestCase):
             image_span = document.blocks[0].spans[0]
             self.assertEqual(image_span.alt_text, "公章")
             self.assertEqual(image_span.path, str(image_path.resolve()))
+
+    def test_parse_markdown_hyperlinks_in_lists_paragraphs_and_tables(self) -> None:
+        document = parse_markdown(SAMPLE_MARKDOWN_WITH_HYPERLINKS)
+
+        list_link = document.blocks[0].spans[0]
+        paragraph_link = document.blocks[1].spans[1]
+        table_link = document.blocks[2].table_rows[1][0][0]
+        for link in (list_link, paragraph_link, table_link):
+            self.assertIsInstance(link, HyperlinkSpan)
+            self.assertEqual(link.text, ICH_LINK_TEXT)
+            self.assertEqual(link.target, ICH_LINK_TARGET)
 
     def test_parse_markdown_table_with_alignment_and_escaped_pipe(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN_WITH_TABLE)
@@ -740,6 +764,30 @@ class DocxGenerationTests(unittest.TestCase):
             [child.tag for child in word_document._element.body],
             [qn("w:tbl"), qn("w:p"), qn("w:tbl"), qn("w:sectPr")],
         )
+
+    def test_markdown_hyperlinks_are_native_external_word_links(self) -> None:
+        payload = build_docx(
+            parse_markdown(SAMPLE_MARKDOWN_WITH_HYPERLINKS),
+            load_preset("official-doc-cn-system-fonts-12pt"),
+        )
+
+        with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+            document_xml = archive.read("word/document.xml").decode("utf-8")
+            relationships_xml = archive.read(
+                "word/_rels/document.xml.rels"
+            ).decode("utf-8")
+
+        self.assertEqual(document_xml.count("<w:hyperlink"), 3)
+        self.assertEqual(document_xml.count(ICH_LINK_TEXT), 3)
+        self.assertNotIn(f"[{ICH_LINK_TEXT}]({ICH_LINK_TARGET})", document_xml)
+        self.assertIn('w:color w:val="0563C1"', document_xml)
+        self.assertIn('w:u w:val="single"', document_xml)
+        self.assertIn(
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"',
+            relationships_xml,
+        )
+        self.assertIn(f'Target="{ICH_LINK_TARGET}"', relationships_xml)
+        self.assertIn('TargetMode="External"', relationships_xml)
 
     def test_cli_writes_docx_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

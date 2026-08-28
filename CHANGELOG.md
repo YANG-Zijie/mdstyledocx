@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Export inline Markdown links as native external Word hyperlinks in headings, paragraphs, lists, and table cells.
 - Keep consecutive Markdown tables visually separate in DOCX output by inserting one empty paragraph at the active preset's body line height.
 
 ## 0.3.0 - 2026-08-27

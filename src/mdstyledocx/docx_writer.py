@@ -16,7 +16,8 @@ from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_TAB_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Pt, Twips
+from docx.opc.constants import RELATIONSHIP_TYPE as RT
+from docx.shared import Pt, RGBColor, Twips
 from lxml import etree
 
 from mdstyledocx.model import (
@@ -25,6 +26,7 @@ from mdstyledocx.model import (
     DocumentBlock,
     FigureBlock,
     FigureReferenceSpan,
+    HyperlinkSpan,
     ImageSpan,
     InlineElement,
     InlineSpan,
@@ -480,7 +482,11 @@ def _document_title(document: Document) -> str:
         return str(document.metadata["title"])
     for block in document.blocks:
         if block.kind == "heading" and block.level == 1:
-            return "".join(span.text for span in block.spans if isinstance(span, InlineSpan)).strip()
+            return "".join(
+                span.text
+                for span in block.spans
+                if isinstance(span, (InlineSpan, HyperlinkSpan))
+            ).strip()
     return "Document"
 
 
@@ -538,6 +544,8 @@ def _append_block(
     for span in rendered_spans:
         if isinstance(span, ImageSpan):
             _add_image_run(paragraph, span, state)
+        elif isinstance(span, HyperlinkSpan):
+            _add_hyperlink_run(paragraph, span, style)
         elif isinstance(span, FigureReferenceSpan):
             _add_figure_reference_run(paragraph, span, state, style)
         elif span.text:
@@ -689,7 +697,9 @@ def _populate_table_cell(
     for span in spans:
         if isinstance(span, ImageSpan):
             raise TypeError("Images inside Markdown table cells are not supported")
-        if isinstance(span, FigureReferenceSpan):
+        if isinstance(span, HyperlinkSpan):
+            _add_hyperlink_run(paragraph, span, style)
+        elif isinstance(span, FigureReferenceSpan):
             _add_figure_reference_run(paragraph, span, state, style)
         elif span.text:
             _add_text_run(paragraph, span, style)
@@ -745,7 +755,7 @@ def _content_aware_column_widths(block: Block, preset: Preset) -> list[int]:
 def _inline_text(spans: list[InlineElement]) -> str:
     return "".join(
         span.text
-        if isinstance(span, InlineSpan)
+        if isinstance(span, (InlineSpan, HyperlinkSpan))
         else span.alt_text
         if isinstance(span, ImageSpan)
         else span.figure_id
@@ -900,6 +910,25 @@ def _add_text_run(paragraph, span: InlineSpan, style: Style) -> None:
     )
 
 
+def _add_hyperlink_run(paragraph, span: HyperlinkSpan, style: Style) -> None:
+    relationship_id = paragraph.part.relate_to(
+        span.target,
+        RT.HYPERLINK,
+        is_external=True,
+    )
+    run = paragraph.add_run(span.text)
+    _apply_run_style(run, style)
+    run.font.color.rgb = RGBColor.from_string("0563C1")
+    run.font.underline = True
+
+    hyperlink = OxmlElement("w:hyperlink")
+    hyperlink.set(qn("r:id"), relationship_id)
+    hyperlink.set(qn("w:history"), "1")
+    paragraph._p.remove(run._r)
+    hyperlink.append(run._r)
+    paragraph._p.append(hyperlink)
+
+
 def _add_figure_reference_run(
     paragraph,
     span: FigureReferenceSpan,
@@ -1027,7 +1056,11 @@ def _advance_heading_counters(state: BuildState, level: int) -> None:
 
 
 def _has_number_prefix(spans: list[InlineElement], scheme: str) -> bool:
-    text = "".join(span.text for span in spans if isinstance(span, InlineSpan)).lstrip()
+    text = "".join(
+        span.text
+        for span in spans
+        if isinstance(span, (InlineSpan, HyperlinkSpan))
+    ).lstrip()
     patterns = {
         "cn-section": r"^[一二三四五六七八九十百千万零〇两]+、",
         "cn-paren": r"^（[一二三四五六七八九十百千万零〇两]+）",

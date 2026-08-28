@@ -19,11 +19,17 @@ class ImageSpan:
 
 
 @dataclass
+class HyperlinkSpan:
+    text: str
+    target: str
+
+
+@dataclass
 class FigureReferenceSpan:
     figure_id: str
 
 
-InlineElement = InlineSpan | ImageSpan | FigureReferenceSpan
+InlineElement = InlineSpan | ImageSpan | HyperlinkSpan | FigureReferenceSpan
 TableCell = list[InlineElement]
 TableRow = list[TableCell]
 
