@@ -36,7 +36,7 @@
 
 ## 引用与参考资料
 
-正文使用 AIMD 的 `{{cite|资料ID}}`，参考资料集中以 BibTeX 写在 `refs` 代码块中。本功能目前位于本地源码 / Unreleased；使用已发布版本前应确认其包含 `cite` / `refs` 支持。
+正文使用 AIMD 的 `{{cite|资料ID}}`，参考资料集中以 BibTeX 写在 `refs` 代码块中。本功能自 `mdstyledocx 0.4.0` 起提供。
 
 ````markdown
 # 合作方案
@@ -124,7 +124,7 @@ mdstyledocx --show-preset-json official-doc-cn-12pt
 如果你使用 `uv`，推荐直接安装为命令行工具：
 
 ```bash
-uv tool install "mdstyledocx>=0.2.0"
+uv tool install "mdstyledocx>=0.4.0"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
@@ -132,18 +132,18 @@ mdstyledocx --list-presets
 如果你只想临时执行一次，也可以：
 
 ```bash
-uvx --from "mdstyledocx>=0.2.0" mdstyledocx --list-presets
+uvx --from "mdstyledocx>=0.4.0" mdstyledocx --list-presets
 ```
 
 如果你使用 `pip`：
 
 ```bash
-pip install "mdstyledocx>=0.2.0"
+pip install "mdstyledocx>=0.4.0"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
 
-`official-doc-cn*` 命名、12 pt 变体、嵌套 YAML frontmatter、页眉页脚和水印均要求 `mdstyledocx >= 0.2.0`。如果 `--list-presets` 中没有这些名称，应先升级命令行工具。
+使用本文全部功能需 `mdstyledocx >= 0.4.0`，包括编号引用、原生外部超链接和连续表格分隔修复。已有安装可通过 `uv tool upgrade mdstyledocx` 或 `pip install --upgrade mdstyledocx` 更新，再运行 `mdstyledocx --version` 确认版本。
 
 ## Codex / AI Agent Skill
 
@@ -158,7 +158,7 @@ $skill-installer
 请从 https://github.com/YANG-Zijie/mdstyledocx/tree/main/.agents/skills/mdstyledocx 安装 mdstyledocx skill。
 ```
 
-安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.2.0` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.2.0" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
+安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.4.0` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.4.0" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
 
 ## 使用方式
 
@@ -352,6 +352,7 @@ legend: 这是可选的详细图例说明。
 
 - 标题、段落、列表、表格、外部超链接、分页、本地图片及结构化 `fig` 可稳定导出
 - 结构化图片可自动编号、输出图题与图例，并通过 `ref_fig` 生成 Word 内部链接
+- `cite` / BibTeX `refs` 支持按首次引用顺序编号、重复与组合引用，以及参考资料内部跳转和来源链接
 - 表格首行自动加粗并在跨页时重复显示，列宽依据各列内容分配后继续允许 Word 自动调整
 - YAML frontmatter 驱动的页眉、页脚、动态页码字段和文本水印
 - 预设版式可复用

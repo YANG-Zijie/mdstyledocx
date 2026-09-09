@@ -4,7 +4,6 @@ date: 2026-08-19
 
 header:
   left: 示例单位
-  center: "{title}"
   right: 内部材料
 
 footer:

@@ -2,11 +2,14 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## Unreleased
+## 0.4.0 - 2026-09-09
 
-- Add AIMD-compatible `cite` / BibTeX `refs`, first-citation numbering across headings, paragraphs, lists and tables, shared reference numbers, grouped citations, native Word bookmarks/internal links, compact linked bibliography entries, strict literal-subset validation, and preset-controlled source ordering, superscripts and reference styles. Preserve citation examples in code and keep uncited entries after cited entries. Bibliography placement follows the first `refs` block; headings and page breaks remain author-controlled.
+- Add AIMD-compatible `cite` / BibTeX `refs` with first-citation numbering across headings, paragraphs, lists, and tables, shared reference numbers, and grouped citations.
+- Link citations to native Word bibliography bookmarks and reference titles to URLs or DOIs; support preset-controlled source ordering, superscripts, and reference styles.
+- Validate the literal BibTeX subset, missing citation targets, and duplicate IDs. Preserve citation examples in code, retain uncited entries after cited entries, and render the bibliography at the first `refs` block with author-controlled headings and page breaks.
 - Export inline Markdown links as native external Word hyperlinks in headings, paragraphs, lists, and table cells.
 - Keep consecutive Markdown tables visually separate in DOCX output by inserting one empty paragraph at the active preset's body line height.
+- Update installation and Skill requirements to 0.4.0 and correct the page-content example to use the supported two-zone header.
 
 ## 0.3.0 - 2026-08-27
 

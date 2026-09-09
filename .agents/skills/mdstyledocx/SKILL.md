@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-The canonical preset names, page-content features, explicit blank-line markers, and official-document list layout in this skill require `mdstyledocx >= 0.3.0`. Use one runner consistently for the task:
+The Markdown features in this skill, including numbered citations and native external hyperlinks, require `mdstyledocx >= 0.4.0`. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.3.0 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.3.0" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.0 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.4.0" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 
@@ -50,7 +50,7 @@ Do not invent preset names or rely on remembered rules when the installed CLI ca
 - Resolve image paths relative to the Markdown file and confirm referenced files exist.
 - Tables are emitted as native Word tables with bold repeating headers and content-aware autofit widths. Markdown separator alignment markers are honored; merged cells, multiline cells, and images inside cells are not supported.
 - Inline `[text](target)` links are emitted as native external Word hyperlinks in headings, paragraphs, lists, and table cells. Keep link text plain; nested emphasis or code inside link text is not supported.
-- For bibliographic citations, use AIMD-compatible `{{cite|id}}` or `{{cite|id1,id2}}` with literal BibTeX in a fenced `refs` block. This is an Unreleased/source-checkout capability; confirm the selected installed runner includes it before using it. Do not replace it with hand-numbered markers when the runner supports it.
+- For bibliographic citations, use AIMD-compatible `{{cite|id}}` or `{{cite|id1,id2}}` with literal BibTeX in a fenced `refs` block. Do not replace supported citation syntax with hand-numbered markers.
 - Citation numbers default to first appearance across headings, paragraphs, lists, and table cells, regardless of BibTeX order. Repeated IDs reuse numbers. Uncited entries remain after cited entries in definition order. Preset `citation_settings.order: source` opts into AIMD's current definition-order numbering; `citation_settings.superscript` controls raised citation markers.
 - Put a `refs` block after the author-chosen reference heading and optional page break. The combined list is rendered once at the first `refs` block; other `refs` blocks contribute definitions only. Word citations link to bibliography bookmarks, and reference titles link to URLs or DOIs. No reference heading or page break is generated automatically.
 - Each BibTeX entry needs a unique ID and non-empty `title`. Use braced, quoted, or numeric literal fields; nested braces and common escaped punctuation are supported. Macros, concatenation, `@string`, `@preamble`, and `@comment` are rejected. Preserve source metadata; do not invent absent dates, authors, or identifiers. Compact bibliography output is not full GB/T 7714 or CSL formatting.
