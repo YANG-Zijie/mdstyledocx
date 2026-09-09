@@ -1,5 +1,11 @@
 # `official-doc-cn-system-fonts-12pt` preset
 
+## 引用与参考资料
+
+正文用 `{{cite|id}}` 或 `{{cite|id1,id2}}`，资料定义用 BibTeX `refs` 代码块。默认按全文首次引用顺序编号并生成 Word 内部跳转；未引用条目排在最后。`citation_settings.order: source` 可保留定义顺序，`citation_settings.superscript: true` 可启用上标。资料标题通过 URL 或 DOI 链接到来源。
+
+参考资料在首个 `refs` 块处输出一次，标题及 `<!-- pagebreak -->` 由作者安排。默认采用正文的字体、字号和行距及两字符悬挂缩进，可用完整的 `styles.reference` 样式覆盖。简洁著录不等同于完整 GB/T 7714 格式。支持范围及 BibTeX 校验规则见 README 的“引用与参考资料”部分。
+
 ## 适用场景
 
 明确要求采用小四号正文体系，且运行或交付环境仅提供通用 `黑体 / 楷体 / 仿宋` 字体名称的中文正式文档。

@@ -8,6 +8,7 @@ import yaml
 
 from mdstyledocx.model import (
     Block,
+    CitationSpan,
     Document,
     DocumentBlock,
     FigureBlock,
@@ -16,7 +17,9 @@ from mdstyledocx.model import (
     ImageSpan,
     InlineElement,
     InlineSpan,
+    ReferencesBlock,
 )
+from mdstyledocx.references import REFERENCE_ID_RE, ordered_references, parse_references
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 BULLET_RE = re.compile(r"^(\s*)[-*+]\s+(.*?)\s*$")
@@ -26,11 +29,16 @@ BLANKLINE_MARKER_RE = re.compile(
 )
 BLANKLINE_PREFIX_RE = re.compile(r"^<!--\s*blankline\b")
 INLINE_TOKEN_RE = re.compile(
-    r"(!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)|\{\{ref_fig\|[^{}|]+\}\}|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)"
+    r"(?P<ticks>`+)(?P<code>.+?)(?P=ticks)(?!`)"
+    r"|!\[[^\]]*]\([^)]+\)|\[[^\]]+]\([^)]+\)"
+    r"|(?<!\\)\{\{(?:ref_fig\|[^{}|]+|cite\|[^{}]*)\}\}"
+    r"|\*\*[^*]+\*\*|\*[^*]+\*"
 )
 IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
 HYPERLINK_RE = re.compile(r"^\[([^\]]+)]\(([^)]+)\)$")
 FIGURE_REFERENCE_RE = re.compile(r"^\{\{ref_fig\|([^{}|]+)\}\}$")
+CITATION_RE = re.compile(r"^\{\{cite\|([^{}]*)\}\}$")
+FENCE_START_RE = re.compile(r"^\s*(`{3,}|~{3,})([^`~]*)$")
 # Structured figures derive from AIMD; mdstyledocx additionally permits an
 # unreferenced figure to omit id without rewriting the Markdown source.
 FIGURE_FENCE_RE = re.compile(r"^\s*```fig\s*$")
@@ -75,17 +83,24 @@ def parse_markdown(text: str, base_path: Path | None = None) -> Document:
 
     document = Document(metadata=metadata, blocks=blocks)
     _validate_figure_references(document)
+    ordered_references(document)
     return document
 
 
 def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement]:
     spans: list[InlineElement] = []
-    for token in INLINE_TOKEN_RE.split(text):
-        if not token:
+    cursor = 0
+    for match in INLINE_TOKEN_RE.finditer(text):
+        _append_plain_span(spans, text[cursor : match.start()])
+        cursor = match.end()
+        token = match.group()
+        if match.group("code") is not None:
+            spans.append(InlineSpan(text=match.group("code"), code=True))
             continue
         image_match = IMAGE_RE.match(token)
         hyperlink_match = HYPERLINK_RE.match(token)
         figure_reference_match = FIGURE_REFERENCE_RE.match(token)
+        citation_match = CITATION_RE.match(token)
         if image_match:
             spans.append(
                 ImageSpan(
@@ -105,15 +120,37 @@ def parse_inline(text: str, base_path: Path | None = None) -> list[InlineElement
             if not figure_id:
                 raise ValueError("ref_fig must contain a non-empty figure id")
             spans.append(FigureReferenceSpan(figure_id=figure_id))
+        elif citation_match:
+            reference_ids = [part.strip() for part in citation_match.group(1).split(",")]
+            if any(not REFERENCE_ID_RE.fullmatch(part) for part in reference_ids):
+                raise ValueError("cite must contain comma-separated, non-empty reference ids")
+            spans.append(CitationSpan(reference_ids=list(dict.fromkeys(reference_ids))))
         elif token.startswith("**") and token.endswith("**") and len(token) > 4:
-            spans.append(InlineSpan(text=token[2:-2], bold=True))
+            spans.extend(_emphasized_spans(token[2:-2], base_path, bold=True))
         elif token.startswith("*") and token.endswith("*") and len(token) > 2:
-            spans.append(InlineSpan(text=token[1:-1], italic=True))
-        elif token.startswith("`") and token.endswith("`") and len(token) > 2:
-            spans.append(InlineSpan(text=token[1:-1], code=True))
+            spans.extend(_emphasized_spans(token[1:-1], base_path, italic=True))
         else:
-            spans.append(InlineSpan(text=token))
+            _append_plain_span(spans, token)
+    _append_plain_span(spans, text[cursor:])
     return spans or [InlineSpan(text="")]
+
+
+def _append_plain_span(spans: list[InlineElement], text: str) -> None:
+    if re.search(r"(?<!\\)\{\{cite\b", text):
+        raise ValueError("Invalid cite syntax; use '{{cite|reference_id}}'")
+    if text:
+        spans.append(InlineSpan(text=text))
+
+
+def _emphasized_spans(
+    text: str, base_path: Path | None, *, bold: bool = False, italic: bool = False
+) -> list[InlineElement]:
+    spans = parse_inline(text, base_path)
+    for span in spans:
+        if isinstance(span, (InlineSpan, CitationSpan)):
+            span.bold = span.bold or bold
+            span.italic = span.italic or italic
+    return spans
 
 
 def _parse_frontmatter(lines: list[str]) -> tuple[dict[str, Any], list[str]]:
@@ -164,6 +201,12 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[DocumentBloc
         if figure_result is not None:
             figure, index = figure_result
             blocks.append(figure)
+            continue
+
+        fenced_result = _parse_fenced_block(lines, index)
+        if fenced_result is not None:
+            block, index = fenced_result
+            blocks.append(block)
             continue
 
         heading_match = HEADING_RE.match(raw)
@@ -232,7 +275,7 @@ def _starts_new_block(lines: list[str], index: int) -> bool:
         return True
     if stripped in PAGEBREAK_MARKERS:
         return True
-    if FIGURE_FENCE_RE.match(line):
+    if FENCE_START_RE.match(line):
         return True
     if HEADING_RE.match(line):
         return True
@@ -259,6 +302,28 @@ def _parse_blankline_marker(marker: str) -> int | None:
             f"Blankline count must be between 1 and {MAX_BLANK_LINES}"
         )
     return count
+
+
+def _parse_fenced_block(
+    lines: list[str], index: int
+) -> tuple[Block | ReferencesBlock, int] | None:
+    match = FENCE_START_RE.match(lines[index])
+    if match is None:
+        return None
+    fence, info = match.groups()
+    info = info.strip()
+    if info.startswith("refs") and info != "refs":
+        raise ValueError("refs fence does not support options; use '```refs'")
+    closing = re.compile(r"^\s*" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}\s*$")
+    end = next((i for i in range(index + 1, len(lines)) if closing.match(lines[i])), None)
+    if end is None:
+        if info == "refs":
+            raise ValueError("Unterminated refs block")
+        end = len(lines)
+    source = "\n".join(lines[index + 1 : end])
+    if info == "refs":
+        return ReferencesBlock(parse_references(source)), end + 1
+    return Block(kind="code", spans=[InlineSpan(text=source, code=True)]), end + 1
 
 
 def _parse_figure(
@@ -343,6 +408,8 @@ def _validate_figure_references(document: Document) -> None:
             figure_ids.add(block.figure_id)
             continue
 
+        if not isinstance(block, Block):
+            continue
         references.extend(_figure_reference_ids(block.spans))
         for row in block.table_rows:
             for cell in row:
@@ -421,6 +488,12 @@ def _split_table_row(line: str) -> list[str]:
     index = 0
     while index < len(source):
         character = source[index]
+        if not in_code and source.startswith("{{", index):
+            end = source.find("}}", index + 2)
+            if end >= 0:
+                current.append(source[index : end + 2])
+                index = end + 2
+                continue
         if character == "`":
             in_code = not in_code
             current.append(character)

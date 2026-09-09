@@ -22,6 +22,7 @@ from lxml import etree
 
 from mdstyledocx.model import (
     Block,
+    CitationSpan,
     Document,
     DocumentBlock,
     FigureBlock,
@@ -30,8 +31,11 @@ from mdstyledocx.model import (
     ImageSpan,
     InlineElement,
     InlineSpan,
+    ReferenceEntry,
+    ReferencesBlock,
 )
 from mdstyledocx.presets import Preset, Style
+from mdstyledocx.references import ordered_references
 
 TEMPLATE_TOKEN_RE = re.compile(r"\{(page|pages|title|date)\}")
 PAGE_FIELD_CODES = {"page": "PAGE", "pages": "NUMPAGES"}
@@ -48,6 +52,9 @@ class BuildState:
     figure_bookmarks: dict[int, str] = field(default_factory=dict)
     figure_reference_numbers: dict[str, int] = field(default_factory=dict)
     figure_reference_bookmarks: dict[str, str] = field(default_factory=dict)
+    references: list[ReferenceEntry] = field(default_factory=list)
+    citation_numbers: dict[str, int] = field(default_factory=dict)
+    references_rendered: bool = False
 
 
 def build_docx(document: Document, preset: Preset) -> bytes:
@@ -88,12 +95,15 @@ def _create_build_state(document: Document, preset: Preset) -> BuildState:
                 raise ValueError(f'Duplicate fig id "{block.figure_id}"')
             figure_reference_numbers[block.figure_id] = number
             figure_reference_bookmarks[block.figure_id] = bookmark
+    references = ordered_references(document, preset.citation_settings.order)
     return BuildState(
         preset=preset,
         figure_numbers=figure_numbers,
         figure_bookmarks=figure_bookmarks,
         figure_reference_numbers=figure_reference_numbers,
         figure_reference_bookmarks=figure_reference_bookmarks,
+        references=references,
+        citation_numbers={entry.reference_id: n for n, entry in enumerate(references, 1)},
     )
 
 
@@ -520,6 +530,12 @@ def _append_block(
         _append_figure(word_document, block, state)
         return
 
+    if isinstance(block, ReferencesBlock):
+        if not state.references_rendered:
+            _append_references(word_document, state)
+            state.references_rendered = True
+        return
+
     assert isinstance(block, Block)
 
     rendered_spans = _rendered_spans(block, state)
@@ -548,11 +564,95 @@ def _append_block(
             _add_hyperlink_run(paragraph, span, style)
         elif isinstance(span, FigureReferenceSpan):
             _add_figure_reference_run(paragraph, span, state, style)
+        elif isinstance(span, CitationSpan):
+            _add_citation_runs(paragraph, span, state, style)
         elif span.text:
             _add_text_run(paragraph, span, style)
 
     if not paragraph._p.xpath(".//w:r"):
         paragraph.add_run("")
+
+
+def _append_references(word_document: WordprocessingDocument, state: BuildState) -> None:
+    body = state.preset.styles["body"]
+    style = state.preset.styles.get(
+        "reference",
+        replace(body, first_line_indent=0, left_indent=body.size_half_points * 20,
+                hanging=body.size_half_points * 20),
+    )
+    for number, entry in enumerate(state.references, 1):
+        paragraph = word_document.add_paragraph()
+        _apply_paragraph_style(paragraph, style)
+        _add_text_run(paragraph, InlineSpan(f"[{number}] "), style)
+        for span in _reference_spans(entry):
+            if isinstance(span, HyperlinkSpan):
+                _add_hyperlink_run(paragraph, span, style)
+            else:
+                _add_text_run(paragraph, span, style)
+        bookmark_id = len(state.figure_numbers) + number
+        start = OxmlElement("w:bookmarkStart")
+        start.set(qn("w:id"), str(bookmark_id))
+        start.set(qn("w:name"), f"mdstyledocx_ref_{number}")
+        end = OxmlElement("w:bookmarkEnd")
+        end.set(qn("w:id"), str(bookmark_id))
+        paragraph._p.insert(1 if paragraph._p.pPr is not None else 0, start)
+        paragraph._p.append(end)
+
+
+def _reference_spans(entry: ReferenceEntry) -> list[InlineSpan | HyperlinkSpan]:
+    """Compact bibliography formatting; this is not a GB/T 7714 formatter."""
+    fields = entry.fields
+    spans: list[InlineSpan | HyperlinkSpan] = []
+
+    def add(text: str, target: str = "") -> None:
+        if not text:
+            return
+        if spans:
+            spans.append(InlineSpan(". "))
+        spans.append(HyperlinkSpan(text, target) if target else InlineSpan(text))
+
+    doi = fields.get("doi", "")
+    doi_url = doi if doi.startswith(("https://", "http://")) else f"https://doi.org/{doi}" if doi else ""
+    add(fields.get("author") or fields.get("editor") or fields.get("organization", ""))
+    add(fields["title"], fields.get("url") or doi_url)
+    add(fields.get("journal") or fields.get("booktitle", ""))
+    volume = fields.get("volume", "")
+    issue = fields.get("number", "")
+    add(f"{volume}({issue})" if volume and issue else volume or issue)
+    add(fields.get("publisher", ""))
+    add(fields.get("date") or fields.get("year", ""))
+    add(fields.get("pages", "").replace("--", "–"))
+    add(fields.get("note", ""))
+    if fields.get("urldate"):
+        add(f"[{fields['urldate']}]")
+    if doi and fields.get("url"):
+        add(f"DOI: {doi}", doi_url)
+    if spans and not spans[-1].text.endswith((".", "。", "!", "?", "！", "？")):
+        spans.append(InlineSpan("."))
+    return spans
+
+
+def _add_citation_runs(paragraph, span: CitationSpan, state: BuildState, style: Style) -> None:
+    numbers = sorted({state.citation_numbers[ref_id] for ref_id in span.reference_ids})
+
+    def add(text: str, number: int | None = None) -> None:
+        run = paragraph.add_run(text)
+        _apply_run_style(run, style, bold=style.bold or span.bold, italic=style.italic or span.italic)
+        run.font.superscript = state.preset.citation_settings.superscript
+        if number is not None:
+            link = OxmlElement("w:hyperlink")
+            link.set(qn("w:anchor"), f"mdstyledocx_ref_{number}")
+            link.set(qn("w:history"), "1")
+            paragraph._p.remove(run._r)
+            link.append(run._r)
+            paragraph._p.append(link)
+
+    add("[")
+    for index, number in enumerate(numbers):
+        if index:
+            add(", ")
+        add(str(number), number)
+    add("]")
 
 
 def _append_figure(
@@ -648,7 +748,7 @@ def _append_table(
     table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = True
 
-    column_widths = _content_aware_column_widths(block, state.preset)
+    column_widths = _content_aware_column_widths(block, state.preset, state)
     _set_table_width(table, sum(column_widths))
     for column_index, width in enumerate(column_widths):
         table.columns[column_index].width = Twips(width)
@@ -701,6 +801,8 @@ def _populate_table_cell(
             _add_hyperlink_run(paragraph, span, style)
         elif isinstance(span, FigureReferenceSpan):
             _add_figure_reference_run(paragraph, span, state, style)
+        elif isinstance(span, CitationSpan):
+            _add_citation_runs(paragraph, span, state, style)
         elif span.text:
             _add_text_run(paragraph, span, style)
     if not paragraph._p.xpath(".//w:r"):
@@ -727,7 +829,7 @@ def _set_table_width(table, width: int) -> None:
     table_width.set(qn("w:w"), str(width))
 
 
-def _content_aware_column_widths(block: Block, preset: Preset) -> list[int]:
+def _content_aware_column_widths(block: Block, preset: Preset, state: BuildState) -> list[int]:
     column_count = len(block.table_rows[0])
     available_width = (
         preset.page.width - preset.page.margin_left - preset.page.margin_right
@@ -737,7 +839,7 @@ def _content_aware_column_widths(block: Block, preset: Preset) -> list[int]:
     weights: list[int] = []
     for column_index in range(column_count):
         natural_width = max(
-            _display_width(_inline_text(row[column_index]))
+            _display_width(_inline_text(row[column_index], state))
             for row in block.table_rows
         )
         weights.append(max(4, min(60, natural_width)))
@@ -752,13 +854,15 @@ def _content_aware_column_widths(block: Block, preset: Preset) -> list[int]:
     return widths
 
 
-def _inline_text(spans: list[InlineElement]) -> str:
+def _inline_text(spans: list[InlineElement], state: BuildState) -> str:
     return "".join(
         span.text
         if isinstance(span, (InlineSpan, HyperlinkSpan))
         else span.alt_text
         if isinstance(span, ImageSpan)
         else span.figure_id
+        if isinstance(span, FigureReferenceSpan)
+        else "[" + ", ".join(str(state.citation_numbers[key]) for key in span.reference_ids) + "]"
         for span in spans
     )
 

@@ -29,7 +29,14 @@ class FigureReferenceSpan:
     figure_id: str
 
 
-InlineElement = InlineSpan | ImageSpan | HyperlinkSpan | FigureReferenceSpan
+@dataclass
+class CitationSpan:
+    reference_ids: list[str]
+    bold: bool = False
+    italic: bool = False
+
+
+InlineElement = InlineSpan | ImageSpan | HyperlinkSpan | FigureReferenceSpan | CitationSpan
 TableCell = list[InlineElement]
 TableRow = list[TableCell]
 
@@ -56,7 +63,20 @@ class FigureBlock:
     kind: str = field(default="figure", init=False)
 
 
-DocumentBlock = Block | FigureBlock
+@dataclass
+class ReferenceEntry:
+    reference_id: str
+    entry_type: str
+    fields: dict[str, str]
+
+
+@dataclass
+class ReferencesBlock:
+    entries: list[ReferenceEntry]
+    kind: str = field(default="references", init=False)
+
+
+DocumentBlock = Block | FigureBlock | ReferencesBlock
 
 
 @dataclass

@@ -4,6 +4,7 @@
 
 ## Unreleased
 
+- Add AIMD-compatible `cite` / BibTeX `refs`, first-citation numbering across headings, paragraphs, lists and tables, shared reference numbers, grouped citations, native Word bookmarks/internal links, compact linked bibliography entries, strict literal-subset validation, and preset-controlled source ordering, superscripts and reference styles. Preserve citation examples in code and keep uncited entries after cited entries. Bibliography placement follows the first `refs` block; headings and page breaks remain author-controlled.
 - Export inline Markdown links as native external Word hyperlinks in headings, paragraphs, lists, and table cells.
 - Keep consecutive Markdown tables visually separate in DOCX output by inserting one empty paragraph at the active preset's body line height.
 

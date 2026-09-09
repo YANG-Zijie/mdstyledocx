@@ -38,7 +38,8 @@
         "heading3": {"$ref": "#/$defs/style"},
         "body": {"$ref": "#/$defs/style"},
         "figure_caption": {"$ref": "#/$defs/style"},
-        "figure_legend": {"$ref": "#/$defs/style"}
+        "figure_legend": {"$ref": "#/$defs/style"},
+        "reference": {"$ref": "#/$defs/style"}
       }
     },
     "page_styles": {
@@ -84,6 +85,14 @@
       "properties": {
         "label": {"type": "string", "minLength": 1},
         "title_separator": {"type": "string"}
+      }
+    },
+    "citation_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "order": {"enum": ["first-citation", "source"]},
+        "superscript": {"type": "boolean"}
       }
     },
     "heading_numbering": {

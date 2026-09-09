@@ -28,10 +28,68 @@
 - `| ... |`：Markdown 表格；导出为原生 Word 表格
 - fenced `fig`：带自动编号、图题、图例和可选稳定 ID 的结构化图片
 - `{{ref_fig|...}}`：引用结构化图片并生成可点击的图号
+- `{{cite|...}}` 与 fenced `refs`：按首次引用顺序自动编号的参考资料及 Word 内部跳转
 - `<!-- blankline -->` / `<!-- blankline: N -->`：空一行或指定 `1–20` 行
 - `<!-- pagebreak -->`：分页
 
 然后执行一次命令，就能得到带统一字体、字号、缩进、页边距的 `.docx`。
+
+## 引用与参考资料
+
+正文使用 AIMD 的 `{{cite|资料ID}}`，参考资料集中以 BibTeX 写在 `refs` 代码块中。本功能目前位于本地源码 / Unreleased；使用已发布版本前应确认其包含 `cite` / `refs` 支持。
+
+````markdown
+# 合作方案
+
+先引用乙资料{{cite|source_b}}，再引用甲资料{{cite|source_a}}。
+重复引用及多项引用{{cite|source_b,source_a}}。
+
+<!-- pagebreak -->
+
+# 参考资料
+
+```refs
+@misc{source_a,
+  title = {甲资料},
+  author = {{某发布机构}},
+  year = {2026},
+  url = {https://example.com/a}
+}
+@misc{source_b,
+  title = {乙资料},
+  note = {相关条款：第十二条},
+  url = {https://example.com/b}
+}
+```
+````
+
+导出后，正文依次显示 `[1]`、`[2]`、`[1, 2]`，文末依次为乙资料、甲资料。编号按整个文档的阅读顺序计算，包含标题、段落、列表以及逐行从左到右读取的表格单元格。同一引用中的编号去重并升序显示；同一资料在不同位置引用时沿用原编号。调整正文后重新导出即可重新计算，Markdown 中的资料 ID 和 BibTeX 排列不会被改写。
+
+正文编号是链接到对应 Word 书签的内部超链接；资料标题在提供 `url` 时链接到该地址，否则可链接到 `doi`。默认引用标记为同行方括号。参考资料采用简洁格式，展示已有的作者 / 编辑者 / 机构、题名、刊物 / 会议名、卷期、出版社、日期 / 年份、页码、备注和访问日期；同时提供 URL 和 DOI 时还展示 DOI 链接。不推测缺失信息，不自动检索或下载资料。本格式不宣称完整符合 GB/T 7714，也不提供著者—出版年制或 CSL 格式化。
+
+引用语法与 [AIMD 的 `cite` / `refs`](https://github.com/airalogy/airalogy/blob/main/docs/airalogy/zh/syntax/cite-in-aimd.md)一致，导出规则有以下明确约定：
+
+- mdstyledocx 默认按正文首次引用顺序编号；AIMD 当前前端按 `refs` 列表顺序编号。如需保持一致，可显式设置 `citation_settings.order` 为 `source`。
+- 在首个 `refs` 块的位置输出完整参考资料列表，不自动移动标题或添加分页。建议在文末放一个 `refs` 块，并用 Markdown 标题和分页标记安排版式。多个 `refs` 块的定义会合并，列表只输出一次。
+- 已定义但未引用的条目仍会保留，排在已引用条目之后，彼此按定义顺序排列。
+- 支持 `{...}`、`"..."`、数字字面量、嵌套保护花括号、常用转义标点、`%` 行注释以及花括号 / 圆括号条目。每个条目须有唯一 ID 和非空 `title`；其他字段可选，未知字段保留在解析结果中但不参与简洁格式输出。
+- 重复 ID、缺失引用目标、错误 BibTeX、未闭合 `refs` 块会使转换失败。BibTeX 宏、`#` 拼接、`@string`、`@preamble`、`@comment` 不在字面量子集内，会明确报错；TeX 命令不执行。
+- 行内代码与普通 fenced 代码块中的引用示例保持原样，不参与编号。表格内的 `{{cite|...}}` 无需转义竖线。
+
+自定义 preset 可配置排序、引用上标以及 `styles.reference` 样式：
+
+```json
+{
+  "schema_version": 1,
+  "extends": "official-doc-cn-system-fonts",
+  "citation_settings": {
+    "order": "first-citation",
+    "superscript": true
+  }
+}
+```
+
+不定义 `styles.reference` 时，参考资料继承正文的字体、字号和行距，并采用两字符悬挂缩进；若定义，则使用完整的常规 style 对象。所有内置 preset 默认 `order: first-citation`、`superscript: false`。这些配置只影响导出，Word 中手工修改引用不会同步回 Markdown。
 
 ## 内置预设
 

@@ -100,6 +100,10 @@
     "hanging": 360,
     "level_step": 360
   },
+  "citation_settings": {
+    "order": "first-citation",
+    "superscript": false
+  },
   "figure_settings": {
     "label": "Figure",
     "title_separator": ": "
