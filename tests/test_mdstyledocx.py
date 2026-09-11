@@ -689,6 +689,31 @@ class DocxGenerationTests(unittest.TestCase):
         self.assertIsNotNone(overflow)
         self.assertEqual(overflow.get(qn("w:val")), "0")
 
+    def test_third_level_heading_indent_matches_official_preset_font_size(self) -> None:
+        expected_indents = {
+            "official-doc-cn": 640,
+            "official-doc-cn-system-fonts": 640,
+            "official-doc-cn-12pt": 480,
+            "official-doc-cn-system-fonts-12pt": 480,
+            "default": 0,
+        }
+        for name, expected_indent in expected_indents.items():
+            for text in ("1. 上市前融资", "上市前融资"):
+                with self.subTest(preset=name, heading=text):
+                    payload = build_docx(
+                        parse_markdown(f"# 示例\n\n#### {text}\n"),
+                        load_preset(name),
+                    )
+                    document = WordDocument(io.BytesIO(payload))
+                    title, heading = document.paragraphs
+                    self.assertEqual(heading.text, text)
+                    self.assertEqual(heading.paragraph_format.left_indent.twips, 0)
+                    self.assertEqual(
+                        heading.paragraph_format.first_line_indent.twips,
+                        expected_indent,
+                    )
+                    self.assertEqual(title.paragraph_format.first_line_indent.twips, 0)
+
     def test_frontmatter_date_is_centered_below_title_using_body_font(self) -> None:
         document = parse_markdown(
             "---\ndate: 2026年8月20日\n---\n\n# 公司制度\n\n正文内容。"

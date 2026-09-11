@@ -39,6 +39,7 @@
     "heading3": {
       "font_east_asia": "仿宋",
       "font_ascii": "Times New Roman",
+      "first_line_indent": 640,
       "size_half_points": 32,
       "bold": true
     },

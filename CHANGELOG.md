@@ -2,6 +2,11 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.4.1 - 2026-09-11
+
+- Fix the missing two-character first-line indent for third-level headings (`####`) in all four Chinese official-document presets. The indent is 32 pt for the 16 pt variants and 24 pt for the 12 pt variants.
+- Cover numbered and unnumbered headings in DOCX regression tests and document the preset rule.
+
 ## 0.4.0 - 2026-09-09
 
 - Add AIMD-compatible `cite` / BibTeX `refs` with first-citation numbering across headings, paragraphs, lists, and tables, shared reference numbers, and grouped citations.
