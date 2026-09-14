@@ -2,9 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
-## Unreleased
+## 0.4.2 - 2026-09-14
 
 - Keep table headers with the first data row so a header is not left alone at the bottom of a page, while preserving repeating headers and normal pagination for later rows. Header-only tables remain independent of following content.
+- Update installation examples and the repository Skill to require 0.4.2 so exports include the pagination fix.
 
 ## 0.4.1 - 2026-09-11
 

@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-The Markdown features in this skill, including numbered citations and native external hyperlinks, require `mdstyledocx >= 0.4.0`. Use one runner consistently for the task:
+Use `mdstyledocx >= 0.4.2` for the Markdown features in this skill and the table-header pagination fix. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.0 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.4.0" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.2 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.4.2" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 
@@ -48,7 +48,7 @@ Do not invent preset names or rely on remembered rules when the installed CLI ca
 - Keep page-content styling in the preset. Do not add font, size, color, opacity, rotation, or positioning fields to Markdown frontmatter.
 - A frontmatter `date` is rendered automatically below the level-one title, centered with the preset's body font and size; it remains available as `{date}` in headers and footers.
 - Resolve image paths relative to the Markdown file and confirm referenced files exist.
-- Tables are emitted as native Word tables with bold repeating headers and content-aware autofit widths. Markdown separator alignment markers are honored; merged cells, multiline cells, and images inside cells are not supported.
+- Tables are emitted as native Word tables with bold repeating headers and content-aware autofit widths. A header stays with the first data row; later rows can paginate normally. Markdown separator alignment markers are honored; merged cells, multiline cells, and images inside cells are not supported.
 - Inline `[text](target)` links are emitted as native external Word hyperlinks in headings, paragraphs, lists, and table cells. Keep link text plain; nested emphasis or code inside link text is not supported.
 - For bibliographic citations, use AIMD-compatible `{{cite|id}}` or `{{cite|id1,id2}}` with literal BibTeX in a fenced `refs` block. Do not replace supported citation syntax with hand-numbered markers.
 - Citation numbers default to first appearance across headings, paragraphs, lists, and table cells, regardless of BibTeX order. Repeated IDs reuse numbers. Uncited entries remain after cited entries in definition order. Preset `citation_settings.order: source` opts into AIMD's current definition-order numbering; `citation_settings.superscript` controls raised citation markers.
