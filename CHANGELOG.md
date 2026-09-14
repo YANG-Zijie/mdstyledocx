@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+- Keep table headers with the first data row so a header is not left alone at the bottom of a page, while preserving repeating headers and normal pagination for later rows. Header-only tables remain independent of following content.
+
 ## 0.4.1 - 2026-09-11
 
 - Fix the missing two-character first-line indent for third-level headings (`####`) in all four Chinese official-document presets. The indent is 32 pt for the 16 pt variants and 24 pt for the 12 pt variants.

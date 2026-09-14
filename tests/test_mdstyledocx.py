@@ -773,6 +773,56 @@ class DocxGenerationTests(unittest.TestCase):
         self.assertIn('<w:tblLayout w:type="autofit"', xml)
         self.assertIn('<w:tblHeader w:val="true"', xml)
 
+    def test_table_header_stays_with_first_body_row_without_binding_later_rows(
+        self,
+    ) -> None:
+        for preset_name, _ in list_presets():
+            for body_row_count in (1, 40):
+                with self.subTest(preset=preset_name, body_rows=body_row_count):
+                    markdown = (
+                        "| 项目 | | [说明](https://example.com) |\n"
+                        "| --- | --- | --- |\n"
+                    )
+                    markdown += "\n".join(
+                        f"| 项目 {index} | {index} | 内容 |"
+                        for index in range(body_row_count)
+                    )
+                    payload = build_docx(
+                        parse_markdown(markdown), load_preset(preset_name)
+                    )
+                    table = WordDocument(io.BytesIO(payload)).tables[0]
+                    self.assertEqual(len(table.rows), body_row_count + 1)
+                    self.assertEqual(len(table.columns), 3)
+
+                    for row_index, row in enumerate(table.rows):
+                        self.assertEqual(len(row._tr.xpath("./w:trPr/w:cantSplit")), 1)
+                        self.assertEqual(
+                            len(row._tr.xpath("./w:trPr/w:tblHeader")),
+                            1 if row_index == 0 else 0,
+                        )
+                        for cell in row.cells:
+                            for paragraph in cell.paragraphs:
+                                keep_next = paragraph.paragraph_format.keep_with_next
+                                if row_index == 0:
+                                    self.assertIs(keep_next, True)
+                                else:
+                                    self.assertIsNone(keep_next)
+
+    def test_header_only_table_does_not_bind_following_content(self) -> None:
+        for preset_name, _ in list_presets():
+            with self.subTest(preset=preset_name):
+                payload = build_docx(
+                    parse_markdown("| 项目 | 金额 |\n| --- | --- |\n\n表后正文。"),
+                    load_preset(preset_name),
+                )
+                word_document = WordDocument(io.BytesIO(payload))
+                table = word_document.tables[0]
+                self.assertEqual(len(table.rows), 1)
+                self.assertEqual(word_document.paragraphs[0].text, "表后正文。")
+                for cell in table.rows[0].cells:
+                    for paragraph in cell.paragraphs:
+                        self.assertIsNone(paragraph.paragraph_format.keep_with_next)
+
     def test_adjacent_markdown_tables_are_separated_by_one_body_line(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN_WITH_ADJACENT_TABLES)
         payload = build_docx(

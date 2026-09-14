@@ -774,6 +774,10 @@ def _append_table(
                 bold=body_style.bold or row_index == 0,
             )
             _populate_table_cell(cell, spans, cell_style, state)
+            if row_index == 0 and len(block.table_rows) > 1:
+                # Keep the header with the first data row, not the whole table.
+                for paragraph in cell.paragraphs:
+                    paragraph.paragraph_format.keep_with_next = True
 
 
 def _append_table_separator(
