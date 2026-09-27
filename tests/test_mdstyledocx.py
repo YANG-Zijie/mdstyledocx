@@ -8,6 +8,7 @@ import tempfile
 import unittest
 import zipfile
 from contextlib import redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 
 from docx import Document as WordDocument
@@ -926,6 +927,83 @@ title: 实验室团队合影
             self.assertIn('relationships/image', rels)
             self.assertIn("media/image1.png", rels)
             self.assertIn("word/media/image1.png", media)
+
+    def test_standalone_images_are_centered_without_body_indents(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "image.png").write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            for preset_name, _ in list_presets():
+                for images in (
+                    "![image](image.png)",
+                    "  ![image](image.png)  ",
+                    "![image](image.png)  ![second](image.png)",
+                ):
+                    with self.subTest(preset=preset_name, images=images):
+                        preset = load_preset(preset_name)
+                        document = parse_markdown(
+                            f"Before.\n\n{images}\n\nAfter.", base_path=temp_path
+                        )
+                        word_document = WordDocument(io.BytesIO(build_docx(document, preset)))
+                        before, image, after = word_document.paragraphs
+                        self.assertEqual(image.alignment, WD_ALIGN_PARAGRAPH.CENTER)
+                        self.assertEqual(image.paragraph_format.first_line_indent.twips, 0)
+                        self.assertEqual(image.paragraph_format.left_indent.twips, 0)
+                        self.assertEqual(image.paragraph_format.line_spacing, 1.0)
+                        self.assertEqual(len(image._p.xpath(".//w:drawing")), images.count("!["))
+                        for paragraph in (before, after):
+                            self.assertEqual(
+                                paragraph.paragraph_format.first_line_indent.twips,
+                                preset.styles["body"].first_line_indent,
+                            )
+
+    def test_standalone_image_clears_custom_hanging_and_left_indents(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "image.png").write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            preset = load_preset("default")
+            preset.styles["body"] = replace(
+                preset.styles["body"], left_indent=720, hanging=240
+            )
+            payload = build_docx(
+                parse_markdown("![image](image.png)", base_path=temp_path), preset
+            )
+            paragraph = WordDocument(io.BytesIO(payload)).paragraphs[0]
+            self.assertEqual(paragraph.alignment, WD_ALIGN_PARAGRAPH.CENTER)
+            self.assertEqual(paragraph.paragraph_format.first_line_indent.twips, 0)
+            self.assertEqual(paragraph.paragraph_format.left_indent.twips, 0)
+
+    def test_inline_list_and_heading_images_preserve_paragraph_layout(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "image.png").write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            image = "![image](image.png)"
+            for preset_name, _ in list_presets():
+                for markdown in (
+                    f"Before {image} after.",
+                    f"{image} [Source](https://example.com)",
+                    f"- {image}",
+                    f"1. {image}",
+                    f"## {image}",
+                ):
+                    with self.subTest(preset=preset_name, markdown=markdown):
+                        preset = load_preset(preset_name)
+                        actual = WordDocument(io.BytesIO(build_docx(
+                            parse_markdown(markdown, base_path=temp_path), preset
+                        ))).paragraphs[0]
+                        expected = WordDocument(io.BytesIO(build_docx(
+                            parse_markdown(markdown.replace(image, "Image")), preset
+                        ))).paragraphs[0]
+                        self.assertEqual(actual.alignment, expected.alignment)
+                        self.assertEqual(
+                            actual.paragraph_format.first_line_indent,
+                            expected.paragraph_format.first_line_indent,
+                        )
+                        self.assertEqual(
+                            actual.paragraph_format.left_indent,
+                            expected.paragraph_format.left_indent,
+                        )
+                        self.assertEqual(len(actual._p.xpath(".//w:drawing")), 1)
+                        self.assertEqual(actual.paragraph_format.line_spacing, 1.0)
 
     def test_structured_figures_render_numbered_captions_legends_and_links(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

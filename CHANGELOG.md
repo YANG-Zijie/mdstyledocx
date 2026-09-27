@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## 0.4.3 - 2026-09-27
+
+- Center standalone Markdown image paragraphs and clear inherited first-line, left, and hanging indents. Preserve automatic line height so images are not clipped.
+- Preserve paragraph layout for inline images mixed with text or links, list items, headings, and structured `fig` blocks. Add regression coverage across all five presets and custom body indents.
+- Update installation examples and the repository Skill to require 0.4.3 and document standalone image layout.
+
 ## 0.4.2 - 2026-09-14
 
 - Keep table headers with the first data row so a header is not left alone at the bottom of a page, while preserving repeating headers and normal pagination for later rows. Header-only tables remain independent of following content.

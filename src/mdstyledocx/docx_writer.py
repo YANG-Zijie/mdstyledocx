@@ -549,6 +549,15 @@ def _append_block(
         style = replace(style, spacing_after=0)
     if _spans_have_image(rendered_spans):
         style = replace(style, line=240, line_rule="auto")
+        if block.kind == "paragraph" and all(
+            isinstance(span, ImageSpan)
+            or (isinstance(span, InlineSpan) and not span.text.strip())
+            for span in rendered_spans
+        ):
+            # Standalone images use the full text area, not the body indent.
+            style = replace(
+                style, align="center", first_line_indent=0, left_indent=0, hanging=0
+            )
 
     paragraph = word_document.add_paragraph()
     _apply_paragraph_style(paragraph, style)
