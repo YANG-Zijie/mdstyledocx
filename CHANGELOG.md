@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md) | [简体中文](CHANGELOG.zh-CN.md)
 
+## Unreleased
+
+## 0.4.4 - 2026-10-05
+
+- Proportionally shrink images against both available page height and width, accounting for margins, gutter, paragraph indents and spacing. Keep smaller images at their original size and reserve basic caption space for structured figures. Keep images with captions while allowing legends to flow across pages without shrinking images further.
+
 ## 0.4.3 - 2026-09-27
 
 - Center standalone Markdown image paragraphs and clear inherited first-line, left, and hanging indents. Preserve automatic line height so images are not clipped.

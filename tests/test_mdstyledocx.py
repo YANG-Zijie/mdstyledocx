@@ -4,9 +4,11 @@ import base64
 import io
 import json
 import re
+import struct
 import tempfile
 import unittest
 import zipfile
+import zlib
 from contextlib import redirect_stdout
 from dataclasses import replace
 from pathlib import Path
@@ -14,6 +16,7 @@ from pathlib import Path
 from docx import Document as WordDocument
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
+from docx.shared import Inches, Twips
 
 from mdstyledocx import __version__
 from mdstyledocx.cli import main
@@ -27,6 +30,21 @@ from mdstyledocx.presets import (
     load_preset_rules,
     load_preset_schema,
 )
+
+def _png_image_bytes(width: int, height: int) -> bytes:
+    def chunk(name: bytes, data: bytes) -> bytes:
+        return (
+            struct.pack(">I", len(data)) + name + data
+            + struct.pack(">I", zlib.crc32(name + data))
+        )
+
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        + chunk(b"IDAT", zlib.compress((b"\0" + b"\x90\xb0\xd0" * width) * height))
+        + chunk(b"IEND", b"")
+    )
+
 
 SAMPLE_MARKDOWN = """# 关于开展示例工作的通知
 
@@ -928,6 +946,75 @@ title: 实验室团队合影
             self.assertIn("media/image1.png", rels)
             self.assertIn("word/media/image1.png", media)
 
+    def test_images_fit_page_width_and_height_without_changing_aspect_ratio(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            for width, height in ((150, 1600), (1600, 150), (800, 3000), (72, 36)):
+                image_path = temp_path / f"{width}-{height}.png"
+                image_path.write_bytes(_png_image_bytes(width, height))
+                for preset_name, _ in list_presets():
+                    for structured in (False, True, "legend"):
+                        with self.subTest(size=(width, height), preset=preset_name, fig=structured):
+                            preset = load_preset(preset_name)
+                            markdown = (
+                                f"```fig\nsrc: {image_path.name}\ntitle: Caption\n"
+                                + ("legend: Legend\n" if structured == "legend" else "")
+                                + "```"
+                                if structured else f"![Image]({image_path.name})"
+                            )
+                            word_document = WordDocument(io.BytesIO(build_docx(
+                                parse_markdown(markdown, base_path=temp_path), preset
+                            )))
+                            shape = word_document.inline_shapes[0]
+                            page = preset.page
+                            self.assertLessEqual(shape.width, Twips(page.width - page.margin_left - page.margin_right))
+                            self.assertLess(shape.height, Twips(page.height - page.margin_top - page.margin_bottom))
+                            # Integer EMU dimensions can round by less than one unit.
+                            self.assertLessEqual(abs(shape.width * height - shape.height * width), width + height)
+                            self.assertLessEqual(shape.width, Inches(width / 72))
+                            self.assertLessEqual(shape.height, Inches(height / 72))
+                            if (width, height) == (72, 36):
+                                self.assertEqual(shape.width, Inches(1))
+                                self.assertEqual(shape.height, Inches(0.5))
+
+                # Reuse the same tall/wide asset with a smaller custom page.
+                preset = load_preset("default")
+                preset.page = replace(preset.page, height=7200, margin_top=1800, margin_bottom=1800, gutter=720)
+                preset.styles["body"] = replace(preset.styles["body"], spacing_before=120, spacing_after=240)
+                paragraph = WordDocument(io.BytesIO(build_docx(
+                    parse_markdown(f"![Image]({image_path.name})", base_path=temp_path), preset
+                )))
+                shape = paragraph.inline_shapes[0]
+                self.assertLessEqual(shape.width, Twips(preset.page.width - preset.page.margin_left - preset.page.margin_right - 720))
+                self.assertLess(shape.height, Twips(3600 - 120 - 240))
+
+    def test_wide_inline_images_account_for_paragraph_indents_and_gutter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            image_path = temp_path / "image.png"
+            image_path.write_bytes(_png_image_bytes(2000, 100))
+            for preset_name, _ in list_presets():
+                preset = load_preset(preset_name)
+                # The source image is wider than the page, including without indents.
+                preset.page = replace(preset.page, width=5000, margin_left=1800, margin_right=1800, gutter=240)
+                for markdown in ("Text ![Image](image.png)", "- ![Image](image.png)"):
+                    with self.subTest(preset=preset_name, markdown=markdown):
+                        word_document = WordDocument(io.BytesIO(build_docx(
+                            parse_markdown(markdown, base_path=temp_path), preset
+                        )))
+                        formatting = word_document.paragraphs[0].paragraph_format
+                        available = Twips(1160) - max(0, formatting.left_indent or 0) - max(0, formatting.first_line_indent or 0)
+                        self.assertLessEqual(word_document.inline_shapes[0].width, available)
+
+    def test_image_rejects_page_layout_with_no_usable_height(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "image.png").write_bytes(base64.b64decode(PNG_1X1_BASE64))
+            preset = load_preset("default")
+            preset.page = replace(preset.page, height=preset.page.margin_top + preset.page.margin_bottom + 100)
+            with self.assertRaisesRegex(ValueError, "no space for an image"):
+                build_docx(parse_markdown("![Image](image.png)", base_path=temp_path), preset)
+
     def test_standalone_images_are_centered_without_body_indents(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = Path(temp_dir)
@@ -1045,7 +1132,7 @@ legend: 展示平台的主要检索入口和知识关联导航。
         self.assertIn('w:anchor="mdstyledocx_fig_2"', xml)
         self.assertIn('w:name="mdstyledocx_fig_1"', xml)
         self.assertIn('w:name="mdstyledocx_fig_2"', xml)
-        self.assertGreaterEqual(xml.count("<w:keepNext"), 3)
+        self.assertEqual(xml.count("<w:keepNext/>"), 2)
         self.assertEqual(xml.count("<w:drawing>"), 2)
         self.assertEqual(len(media), 1)
 
@@ -1062,6 +1149,39 @@ legend: 展示平台的主要检索入口和知识关联导航。
         self.assertEqual(caption.alignment, WD_ALIGN_PARAGRAPH.CENTER)
         self.assertEqual(caption.paragraph_format.first_line_indent.twips, 0)
         self.assertEqual(legend.paragraph_format.first_line_indent.twips, 0)
+        self.assertTrue(caption.paragraph_format.keep_together)
+        self.assertFalse(caption.paragraph_format.keep_with_next)
+        self.assertFalse(legend.paragraph_format.keep_together)
+        self.assertFalse(legend.paragraph_format.keep_with_next)
+
+    def test_figure_legend_does_not_shrink_image_or_bind_caption_to_legend(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            (temp_path / "tall.png").write_bytes(_png_image_bytes(150, 1600))
+            for preset_name, _ in list_presets():
+                with self.subTest(preset=preset_name):
+                    sizes = []
+                    for legend in ("", "Short legend", "Long legend text. " * 300):
+                        source = "```fig\nsrc: tall.png\ntitle: Caption\n"
+                        if legend:
+                            source += f"legend: {legend}\n"
+                        source += "```"
+                        exported = WordDocument(io.BytesIO(build_docx(
+                            parse_markdown(source, base_path=temp_path),
+                            load_preset(preset_name),
+                        )))
+                        shape = exported.inline_shapes[0]
+                        sizes.append((shape.width, shape.height))
+                        image, caption = exported.paragraphs[:2]
+                        self.assertTrue(image.paragraph_format.keep_with_next)
+                        self.assertTrue(caption.paragraph_format.keep_together)
+                        self.assertFalse(caption.paragraph_format.keep_with_next)
+                        if legend:
+                            paragraph = exported.paragraphs[2]
+                            self.assertFalse(paragraph.paragraph_format.keep_together)
+                            self.assertFalse(paragraph.paragraph_format.keep_with_next)
+                    self.assertEqual(sizes[0], sizes[1])
+                    self.assertEqual(sizes[0], sizes[2])
 
     def test_yaml_frontmatter_adds_header_footer_fields_and_watermark(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN_WITH_PAGE_CONTENT)

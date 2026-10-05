@@ -124,7 +124,7 @@ mdstyledocx --show-preset-json official-doc-cn-12pt
 如果你使用 `uv`，推荐直接安装为命令行工具：
 
 ```bash
-uv tool install "mdstyledocx>=0.4.3"
+uv tool install "mdstyledocx>=0.4.4"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
@@ -132,18 +132,18 @@ mdstyledocx --list-presets
 如果你只想临时执行一次，也可以：
 
 ```bash
-uvx --from "mdstyledocx>=0.4.3" mdstyledocx --list-presets
+uvx --from "mdstyledocx>=0.4.4" mdstyledocx --list-presets
 ```
 
 如果你使用 `pip`：
 
 ```bash
-pip install "mdstyledocx>=0.4.3"
+pip install "mdstyledocx>=0.4.4"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
 
-使用本文全部功能及修复需 `mdstyledocx >= 0.4.3`，包括编号引用、原生外部超链接、连续表格分隔、页末孤立表头及独立图片缩进修复。已有安装可通过 `uv tool upgrade mdstyledocx` 或 `pip install --upgrade mdstyledocx` 更新，再运行 `mdstyledocx --version` 确认版本。
+使用本文全部功能及修复需 `mdstyledocx >= 0.4.4`，包括编号引用、原生外部超链接、连续表格分隔、页末孤立表头、独立图片缩进及图片宽高限制修复。已有安装可通过 `uv tool upgrade mdstyledocx` 或 `pip install --upgrade mdstyledocx` 更新，再运行 `mdstyledocx --version` 确认版本。
 
 ## Codex / AI Agent Skill
 
@@ -158,7 +158,7 @@ $skill-installer
 请从 https://github.com/YANG-Zijie/mdstyledocx/tree/main/.agents/skills/mdstyledocx 安装 mdstyledocx skill。
 ```
 
-安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.4.3` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.4.3" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
+安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.4.4` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.4.4" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
 
 ## 使用方式
 
@@ -345,6 +345,8 @@ legend: 这是可选的详细图例说明。
 普通图片不会参与编号。需要正式图号时应使用 `fig`，不要手工在图片下方另写“图 1”，也不要把图片放进 Markdown 标题中。
 
 普通段落仅含图片（允许图片间有空白）时，图片居中且无首行、左侧或悬挂缩进，不继承正文的两字符缩进。若要让图片独立成段，请在它与相邻正文之间留一个空行；图片与文字或链接混排时，保留所在段落的排版。列表项和标题中的图片也保留其所在段落的规则。含图片的段落使用自动行高，避免固定行距裁切图片。
+
+图片同时受页面可用宽度和高度限制：超宽、超高或两者均超限时，按较严格的比例等比缩小；小图不会被放大。可用空间扣除页边距、装订线及所在段落的缩进和间距，`fig` 还会为一行图题预留基本空间。图片与图题保持同页（两者合计超过整页容量时除外）；`legend` 紧随其后、允许自然跨页，不会为了容纳图例而进一步缩小图片。此限制针对一整页的可用区域；当前页剩余空间不足时，由 Word 正常换页。多行图题不做精确高度测量。
 
 图题与图例样式分别由 preset 的 `styles.figure_caption` 和 `styles.figure_legend` 控制；`figure_settings.label` 与 `figure_settings.title_separator` 控制图号标签和图题分隔符。
 

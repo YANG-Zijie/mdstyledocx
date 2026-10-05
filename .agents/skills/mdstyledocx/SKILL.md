@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-Use `mdstyledocx >= 0.4.3` for the Markdown features in this skill and the table-header pagination and standalone-image layout fixes. Use one runner consistently for the task:
+Use `mdstyledocx >= 0.4.4` for the Markdown features in this skill and the table-header pagination, standalone-image layout, and image width/height limits. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.3 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.4.3" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.4 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.4.4" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 
@@ -49,6 +49,7 @@ Do not invent preset names or rely on remembered rules when the installed CLI ca
 - A frontmatter `date` is rendered automatically below the level-one title, centered with the preset's body font and size; it remains available as `{date}` in headers and footers.
 - Resolve image paths relative to the Markdown file and confirm referenced files exist.
 - Ordinary image-only paragraphs are centered without body indents. Separate standalone images from surrounding prose with blank lines; inline images mixed with text or links, list items, and headings retain their paragraph layout.
+- Images exceeding the usable page width or height shrink proportionally; smaller images are not enlarged. Structured figures reserve basic caption space and keep the image with its caption when they fit on one page. Legends follow naturally and may cross pages without shrinking the image further; multiline caption heights are not measured precisely.
 - Tables are emitted as native Word tables with bold repeating headers and content-aware autofit widths. A header stays with the first data row; later rows can paginate normally. Markdown separator alignment markers are honored; merged cells, multiline cells, and images inside cells are not supported.
 - Inline `[text](target)` links are emitted as native external Word hyperlinks in headings, paragraphs, lists, and table cells. Keep link text plain; nested emphasis or code inside link text is not supported.
 - For bibliographic citations, use AIMD-compatible `{{cite|id}}` or `{{cite|id1,id2}}` with literal BibTeX in a fenced `refs` block. Do not replace supported citation syntax with hand-numbered markers.

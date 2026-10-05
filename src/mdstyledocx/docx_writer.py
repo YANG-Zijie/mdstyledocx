@@ -568,7 +568,7 @@ def _append_block(
 
     for span in rendered_spans:
         if isinstance(span, ImageSpan):
-            _add_image_run(paragraph, span, state)
+            _add_image_run(paragraph, span, state, style)
         elif isinstance(span, HyperlinkSpan):
             _add_hyperlink_run(paragraph, span, style)
         elif isinstance(span, FigureReferenceSpan):
@@ -683,7 +683,12 @@ def _append_figure(
     image_paragraph = word_document.add_paragraph()
     _apply_paragraph_style(image_paragraph, image_style)
     _set_keep_with_next(image_paragraph)
-    _add_image_run(image_paragraph, block.image, state)
+    reserved_height = _minimum_paragraph_height(
+        state.preset.styles.get("figure_caption", body_style)
+    )
+    _add_image_run(
+        image_paragraph, block.image, state, image_style, reserved_height=reserved_height
+    )
     _add_figure_bookmark(image_paragraph, block, state)
 
     caption_style = state.preset.styles.get(
@@ -698,8 +703,8 @@ def _append_figure(
     )
     caption = word_document.add_paragraph()
     _apply_paragraph_style(caption, caption_style)
-    if block.legend:
-        _set_keep_with_next(caption)
+    caption.paragraph_format.keep_together = True
+    caption.paragraph_format.keep_with_next = False
     number = state.figure_numbers[id(block)]
     settings = state.preset.figure_settings
     caption_text = f"{settings.label} {number}"
@@ -719,6 +724,8 @@ def _append_figure(
         )
         legend = word_document.add_paragraph()
         _apply_paragraph_style(legend, legend_style)
+        legend.paragraph_format.keep_together = False
+        legend.paragraph_format.keep_with_next = False
         _add_text_run(legend, InlineSpan(text=block.legend), legend_style)
 
 
@@ -1127,14 +1134,39 @@ def _apply_paragraph_run_style(paragraph, style: Style) -> None:
         size.set(qn("w:val"), str(style.size_half_points))
 
 
-def _add_image_run(paragraph, span: ImageSpan, state: BuildState) -> None:
+def _add_image_run(
+    paragraph, span: ImageSpan, state: BuildState, style: Style,
+    *, reserved_height: int = 0
+) -> None:
     run = paragraph.add_run()
     inline_shape = run.add_picture(span.path)
-    max_width = _max_image_width(state.preset)
-    if inline_shape.width > max_width:
-        scale = max_width / inline_shape.width
-        inline_shape.width = max_width
-        inline_shape.height = int(inline_shape.height * scale)
+    formatting = paragraph.paragraph_format
+    max_width = (
+        _max_image_width(state.preset)
+        - max(0, formatting.left_indent or 0)
+        - max(0, formatting.right_indent or 0)
+        - max(0, formatting.first_line_indent or 0)
+    )
+    # Inline pictures still need room for the paragraph baseline and spacing.
+    baseline = Pt(max(12, style.size_half_points / 2))
+    max_height = (
+        Twips(
+            state.preset.page.height
+            - state.preset.page.margin_top
+            - state.preset.page.margin_bottom
+        )
+        - max(0, formatting.space_before or 0)
+        - max(0, formatting.space_after or 0)
+        - baseline
+        - reserved_height
+    )
+    if max_width <= 0 or max_height <= 0:
+        raise ValueError("Page margins and paragraph layout leave no space for an image")
+    scale = min(1.0, max_width / inline_shape.width, max_height / inline_shape.height)
+    if scale < 1.0:
+        width, height = inline_shape.width, inline_shape.height
+        inline_shape.width = max(1, int(width * scale))
+        inline_shape.height = max(1, int(height * scale))
 
     description = span.alt_text or os.path.basename(span.path)
     inline_shape._inline.docPr.set("descr", description)
@@ -1142,7 +1174,19 @@ def _add_image_run(paragraph, span: ImageSpan, state: BuildState) -> None:
 
 
 def _max_image_width(preset: Preset) -> int:
-    return Twips(preset.page.width - preset.page.margin_left - preset.page.margin_right)
+    return Twips(
+        preset.page.width - preset.page.margin_left - preset.page.margin_right
+        - preset.page.gutter
+    )
+
+
+def _minimum_paragraph_height(style: Style) -> int:
+    line = (
+        style.line
+        if style.line_rule == "exact"
+        else style.size_half_points * 10 * style.line / 240
+    )
+    return Twips(int(line + style.spacing_before + style.spacing_after))
 
 
 def _spans_have_image(spans: list[InlineElement]) -> bool:
