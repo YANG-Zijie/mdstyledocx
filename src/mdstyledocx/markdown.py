@@ -34,6 +34,7 @@ INLINE_TOKEN_RE = re.compile(
     r"|(?<!\\)\{\{(?:ref_fig\|[^{}|]+|cite\|[^{}]*)\}\}"
     r"|\*\*[^*]+\*\*|\*[^*]+\*"
 )
+CODE_SPAN_RE = re.compile(r"(?P<ticks>`+)(?P<code>.+?)(?P=ticks)(?!`)", re.DOTALL)
 IMAGE_RE = re.compile(r"^!\[([^\]]*)\]\(([^)]+)\)$")
 HYPERLINK_RE = re.compile(r"^\[([^\]]+)]\(([^)]+)\)$")
 FIGURE_REFERENCE_RE = re.compile(r"^\{\{ref_fig\|([^{}|]+)\}\}$")
@@ -229,34 +230,34 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[DocumentBloc
 
         bullet_match = BULLET_RE.match(raw)
         if bullet_match:
+            item_lines, index = _list_item_lines(lines, index, bullet_match.start(2))
             blocks.append(
                 Block(
                     kind="list_item",
                     list_kind="bullet",
                     list_level=len(bullet_match.group(1).replace("\t", "    ")) // 2,
-                    spans=parse_inline(bullet_match.group(2), base_path),
+                    spans=parse_inline(_join_paragraph_lines(item_lines), base_path),
                 )
             )
-            index += 1
             continue
 
         ordered_match = ORDERED_RE.match(raw)
         if ordered_match:
+            item_lines, index = _list_item_lines(lines, index, ordered_match.start(3))
             blocks.append(
                 Block(
                     kind="list_item",
                     list_kind="ordered",
                     list_level=len(ordered_match.group(1).replace("\t", "    ")) // 2,
                     number=int(ordered_match.group(2)),
-                    spans=parse_inline(ordered_match.group(3), base_path),
+                    spans=parse_inline(_join_paragraph_lines(item_lines), base_path),
                 )
             )
-            index += 1
             continue
 
         paragraph_lines: list[str] = []
         while index < len(lines) and not _starts_new_block(lines, index):
-            paragraph_lines.append(_strip_blockquote(lines[index].rstrip()))
+            paragraph_lines.append(_strip_blockquote(lines[index]))
             index += 1
 
         blocks.append(
@@ -264,6 +265,15 @@ def _parse_blocks(lines: list[str], base_path: Path | None) -> list[DocumentBloc
         )
 
     return blocks
+
+
+def _list_item_lines(lines: list[str], index: int, content_start: int) -> tuple[list[str], int]:
+    item_lines = [lines[index][content_start:]]
+    index += 1
+    while index < len(lines) and not _starts_new_block(lines, index):
+        item_lines.append(lines[index].lstrip())
+        index += 1
+    return item_lines, index
 
 
 def _starts_new_block(lines: list[str], index: int) -> bool:
@@ -535,22 +545,33 @@ def _strip_blockquote(line: str) -> str:
     stripped = line.lstrip()
     if stripped.startswith(">"):
         return stripped[1:].lstrip()
-    return line.strip()
+    return line.lstrip()
 
 
 def _join_paragraph_lines(lines: list[str]) -> str:
     if not lines:
         return ""
 
+    # Detect complete code spans before joining: their newlines are not hard breaks.
+    source = "\n".join(lines)
+    code_ranges = [(match.start(), match.end()) for match in CODE_SPAN_RE.finditer(source)]
     result = lines[0].strip()
-    for line in lines[1:]:
+    boundary = 0
+    for previous, line in zip(lines, lines[1:]):
+        boundary += len(previous)
+        in_code = any(start <= boundary < end for start, end in code_ranges)
         candidate = line.strip()
-        if not candidate:
-            continue
-        if _needs_space(result[-1], candidate[0]):
-            result += " " + candidate
-        else:
+        slash_count = len(previous) - len(previous.rstrip("\\"))
+        hard_break = not in_code and (previous.endswith("  ") or slash_count % 2 == 1)
+        if hard_break:
+            if slash_count % 2 == 1:
+                result = result[:-1]
+            result += "\n" + candidate
+        elif candidate:
+            if result and _needs_space(result[-1], candidate[0]):
+                result += " "
             result += candidate
+        boundary += 1
     return result
 
 

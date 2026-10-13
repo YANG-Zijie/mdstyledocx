@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-Use `mdstyledocx >= 0.4.4` for the Markdown features in this skill and the table-header pagination, standalone-image layout, and image width/height limits. Use one runner consistently for the task:
+Use `mdstyledocx >= 0.4.5` for the Markdown features in this skill, including hard line breaks, table-header pagination, standalone-image layout, and image width/height limits. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.4 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.4.4" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.5 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.4.5" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 
@@ -41,6 +41,7 @@ Do not invent preset names or rely on remembered rules when the installed CLI ca
 ## Keep Markdown within the supported contract
 
 - Follow the selected preset's reported heading and numbering rules.
+- Use two or more trailing spaces or a trailing backslash before a newline for a hard line break within one Word paragraph, including simple list-item continuations. Ordinary newlines join continuous text; blank lines start new paragraphs. Code content and end-of-block markers do not create hard breaks. Chinese markers such as `（1）` remain plain text.
 - In the `official-doc-cn*` presets, heading numbers are source content rather than automatic layout. Write `一、`, `（一）`, or `1.` explicitly only where the document requires them, and leave intentionally unnumbered headings unnumbered. Do not expect the CLI to infer or resequence them. Automatic heading numbering applies only when a custom preset explicitly defines `heading_numbering`.
 - Use headings, paragraphs, ordered or unordered lists, standard inline Markdown links, pipe-style Markdown tables, explicit `<!-- blankline -->` or `<!-- blankline: N -->` markers for `1–20` blank body lines, explicit `<!-- pagebreak -->` markers, and local Markdown images.
 - Use an AIMD-derived fenced `fig` block when an image needs automatic numbering, a title, a legend, or a stable reference target. An unreferenced figure may omit `id`; mdstyledocx assigns an internal identifier without rewriting the Markdown source. To use `{{ref_fig|FIGURE_ID}}` in prose, give the target figure an explicit unique `id`. Strict AIMD files still require every figure to declare `id`. Resolve `src` relative to the Markdown file. Ordinary `![](...)` images remain unnumbered.

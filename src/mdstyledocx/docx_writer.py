@@ -1015,7 +1015,20 @@ def _apply_bottom_border(paragraph, style: Style) -> None:
     bottom.set(qn("w:color"), style.bottom_border_color)
 
 
+def _preserve_break_line_spacing(paragraph) -> None:
+    # A manual break must not stretch a short contact/address line to full width.
+    settings = paragraph.part.document.settings.element
+    compatibility = settings.find(qn("w:compat"))
+    if compatibility is None:
+        compatibility = OxmlElement("w:compat")
+        settings.append(compatibility)
+    if compatibility.find(qn("w:doNotExpandShiftReturn")) is None:
+        compatibility.insert(0, OxmlElement("w:doNotExpandShiftReturn"))
+
+
 def _add_text_run(paragraph, span: InlineSpan, style: Style) -> None:
+    if not span.code and "\n" in span.text:
+        _preserve_break_line_spacing(paragraph)
     run = paragraph.add_run(span.text)
     font_ascii = style.font_ascii
     font_east_asia = style.font_east_asia
@@ -1035,6 +1048,8 @@ def _add_text_run(paragraph, span: InlineSpan, style: Style) -> None:
 
 
 def _add_hyperlink_run(paragraph, span: HyperlinkSpan, style: Style) -> None:
+    if "\n" in span.text:
+        _preserve_break_line_spacing(paragraph)
     relationship_id = paragraph.part.relate_to(
         span.target,
         RT.HYPERLINK,

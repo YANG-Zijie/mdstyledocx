@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.4.5 - 2026-10-13
+
+- Support Markdown hard line breaks (two or more trailing spaces or a trailing backslash) as Word breaks within the same paragraph, including simple list continuations. Preserve soft wrapping, paragraph boundaries, and literal code. Prevent short manually broken lines from stretching to full width in justified paragraphs.
+
 ## 0.4.4 - 2026-10-05
 
 - Proportionally shrink images against both available page height and width, accounting for margins, gutter, paragraph indents and spacing. Keep smaller images at their original size and reserve basic caption space for structured figures. Keep images with captions while allowing legends to flow across pages without shrinking images further.

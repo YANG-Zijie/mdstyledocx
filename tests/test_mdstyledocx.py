@@ -172,6 +172,50 @@ PNG_1X1_BASE64 = (
 
 
 class MarkdownParsingTests(unittest.TestCase):
+    def test_hard_breaks_and_soft_breaks_in_paragraphs(self) -> None:
+        cases = [
+            ("中文\n内容", "中文内容"),
+            ("first\nsecond", "first second"),
+            ("first \nsecond", "first second"),
+            ("first  \n   second", "first\nsecond"),
+            ("first     \nsecond", "first\nsecond"),
+            ("first\\\nsecond", "first\nsecond"),
+            ("first\\\\\nsecond", "first\\\\second"),
+            ("first\t\nsecond", "first second"),
+            ("> first  \n> second", "first\nsecond"),
+            ("（1）第一项  \n（2）第二项", "（1）第一项\n（2）第二项"),
+            ("first  \r\nsecond", "first\nsecond"),
+        ]
+        for source, expected in cases:
+            with self.subTest(source=source):
+                document = parse_markdown(source)
+                self.assertEqual(len(document.blocks), 1)
+                self.assertEqual(document.blocks[0].kind, "paragraph")
+                self.assertEqual("".join(span.text for span in document.blocks[0].spans), expected)
+
+    def test_hard_breaks_do_not_apply_to_code_or_end_of_block(self) -> None:
+        for source in ("`first  \nsecond`", "``first\\\nsecond``"):
+            with self.subTest(source=source):
+                span = parse_markdown(source).blocks[0].spans[0]
+                self.assertTrue(span.code)
+                self.assertNotIn("\n", span.text)
+        document = parse_markdown("first\\\n\nsecond  \n\n## Heading\\\n")
+        self.assertEqual(len(document.blocks), 3)
+        self.assertEqual(document.blocks[0].spans[0].text, "first\\")
+        self.assertEqual(document.blocks[1].spans[0].text, "second")
+        self.assertEqual(document.blocks[2].spans[0].text, "Heading\\")
+        code = parse_markdown("```text\nfirst  \nsecond\\\n```").blocks[0]
+        self.assertEqual(code.kind, "code")
+        self.assertEqual(code.spans[0].text, "first  \nsecond\\")
+
+    def test_simple_list_continuations_preserve_hard_breaks(self) -> None:
+        document = parse_markdown("- first  \n  second\n- next\n\n1. first\\\n   second\n2. next")
+        self.assertEqual(len(document.blocks), 4)
+        self.assertTrue(all(block.kind == "list_item" for block in document.blocks))
+        self.assertEqual(document.blocks[0].spans[0].text, "first\nsecond")
+        self.assertEqual(document.blocks[2].spans[0].text, "first\nsecond")
+        self.assertEqual(document.blocks[2].number, 1)
+
     def test_parse_markdown_blocks(self) -> None:
         document = parse_markdown(SAMPLE_MARKDOWN)
 
@@ -573,6 +617,23 @@ class PresetLoadingTests(unittest.TestCase):
 
 
 class DocxGenerationTests(unittest.TestCase):
+    def test_hard_breaks_export_as_word_breaks_not_new_paragraphs(self) -> None:
+        source = "**联系人**  \n[联系邮箱](mailto:contact@example.com)\\\n地址\n续写\n\n新段落\n\n<!-- blankline -->\n\n（1）职责  \n（2）职责"
+        for preset_name, _ in list_presets():
+            with self.subTest(preset=preset_name):
+                exported = WordDocument(io.BytesIO(build_docx(
+                    parse_markdown(source), load_preset(preset_name)
+                )))
+                self.assertEqual(len(exported.paragraphs), 4)
+                self.assertEqual(len(exported.paragraphs[0]._p.xpath(".//w:br")), 2)
+                self.assertEqual(len(exported.settings.element.xpath(".//w:doNotExpandShiftReturn")), 1)
+                self.assertTrue(exported.paragraphs[0].runs[0].bold)
+                self.assertEqual(len(exported.paragraphs[0]._p.xpath(".//w:hyperlink")), 1)
+                self.assertEqual(exported.paragraphs[1].text, "新段落")
+                self.assertEqual(exported.paragraphs[2].text, "")
+                self.assertEqual(exported.paragraphs[3].text, "（1）职责\n（2）职责")
+                self.assertEqual(len(exported.paragraphs[3]._p.xpath(".//w:numPr")), 0)
+
     def test_blankline_marker_emits_empty_body_lines(self) -> None:
         document = parse_markdown(
             "第一段。\n\n<!-- blankline: 2 -->\n\n第二段。"
