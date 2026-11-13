@@ -4,6 +4,10 @@
 
 ## Unreleased
 
+## 0.4.6 - 2026-11-13
+
+- Match footer Chinese fonts to headers across all four official-document presets: FangSong for the system-font variants and FangSong_GB2312 for the GB2312 variants, all at 10.5 pt. Keep Times New Roman for Latin text and digits, including dynamic page fields, and preserve the three-zone footer layout.
+
 ## 0.4.5 - 2026-10-13
 
 - Support Markdown hard line breaks (two or more trailing spaces or a trailing backslash) as Word breaks within the same paragraph, including simple list continuations. Preserve soft wrapping, paragraph boundaries, and literal code. Prevent short manually broken lines from stretching to full width in justified paragraphs.

@@ -76,7 +76,7 @@
       "bottom_border_color": "000000"
     },
     "footer": {
-      "font_east_asia": "宋体",
+      "font_east_asia": "仿宋_GB2312",
       "font_ascii": "Times New Roman",
       "size_half_points": 21
     },

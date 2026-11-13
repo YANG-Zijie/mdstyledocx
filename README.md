@@ -135,7 +135,7 @@ mdstyledocx --show-preset-json official-doc-cn-12pt
 如果你使用 `uv`，推荐直接安装为命令行工具：
 
 ```bash
-uv tool install "mdstyledocx>=0.4.5"
+uv tool install "mdstyledocx>=0.4.6"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
@@ -143,18 +143,18 @@ mdstyledocx --list-presets
 如果你只想临时执行一次，也可以：
 
 ```bash
-uvx --from "mdstyledocx>=0.4.5" mdstyledocx --list-presets
+uvx --from "mdstyledocx>=0.4.6" mdstyledocx --list-presets
 ```
 
 如果你使用 `pip`：
 
 ```bash
-pip install "mdstyledocx>=0.4.5"
+pip install "mdstyledocx>=0.4.6"
 mdstyledocx --version
 mdstyledocx --list-presets
 ```
 
-使用本文全部功能及修复需 `mdstyledocx >= 0.4.5`，包括编号引用、原生外部超链接、连续表格分隔、页末孤立表头、独立图片缩进、图片宽高限制及硬换行。已有安装可通过 `uv tool upgrade mdstyledocx` 或 `pip install --upgrade mdstyledocx` 更新，再运行 `mdstyledocx --version` 确认版本。
+使用本文全部功能及修复需 `mdstyledocx >= 0.4.6`，包括编号引用、原生外部超链接、连续表格分隔、页末孤立表头、独立图片缩进、图片宽高限制、硬换行及公文页眉页脚字体一致性修复。已有安装可通过 `uv tool upgrade mdstyledocx` 或 `pip install --upgrade mdstyledocx` 更新，再运行 `mdstyledocx --version` 确认版本。
 
 ## Codex / AI Agent Skill
 
@@ -169,7 +169,7 @@ $skill-installer
 请从 https://github.com/YANG-Zijie/mdstyledocx/tree/main/.agents/skills/mdstyledocx 安装 mdstyledocx skill。
 ```
 
-安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.4.5` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.4.5" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
+安装 Skill 不会把 Python 运行时嵌入模型。执行时会优先使用本仓库或 `mdstyledocx >= 0.4.6` 的已安装命令，也可以通过 `uvx --from "mdstyledocx>=0.4.6" mdstyledocx` 临时运行；首次下载依赖可能需要用户允许联网。
 
 ## 使用方式
 
@@ -280,6 +280,8 @@ watermark:
 - `{date}`：frontmatter 中的日期；未提供时使用导出日期
 
 这些动态字段只在页眉和页脚中展开。`watermark` 可以直接写字符串，也可以使用包含 `text` 和 `enabled` 的对象；`enabled: false` 用于关闭水印。
+
+自 0.4.6 起，四个公文预设的页眉、页脚中文字体保持一致：系统字体系列使用仿宋，GB2312 系列使用 `仿宋_GB2312`，均为五号（`10.5 pt`）；英文、数字及动态页码使用 `Times New Roman`，同为 `10.5 pt`。
 
 `{page}` 和 `{pages}` 会写入原生 Word 域，但不会启用“打开文档时更新所有域”的全局设置，以免 Word 对仅含内部页码域的文档误报“域可能引用其他文件”。
 

@@ -557,6 +557,10 @@ class PresetLoadingTests(unittest.TestCase):
                         preset.page_styles["header"].size_half_points,
                         21,
                     )
+                    expected_font = "仿宋" if "system-fonts" in name else "仿宋_GB2312"
+                    for region in ("header", "footer"):
+                        self.assertEqual(preset.page_styles[region].font_east_asia, expected_font)
+                        self.assertEqual(preset.page_styles[region].font_ascii, "Times New Roman")
                 self.assertEqual(preset.watermark_defaults.color, "D9D9D9")
                 self.assertEqual(preset.watermark_defaults.opacity, 0.25)
                 self.assertEqual(preset.watermark_defaults.rotation, -45)
@@ -1301,7 +1305,7 @@ legend: 展示平台的主要检索入口和知识关联导航。
         self.assertRegex(
             footer_xml,
             r'<w:pPr>.*?<w:rPr><w:rFonts[^>]*w:ascii="Times New Roman"'
-            r'[^>]*w:hAnsi="Times New Roman"[^>]*w:eastAsia="宋体"'
+            r'[^>]*w:hAnsi="Times New Roman"[^>]*w:eastAsia="仿宋"'
             r'[^>]*w:cs="Times New Roman"',
         )
         self.assertRegex(
@@ -1334,12 +1338,84 @@ legend: 展示平台的主要检索入口和知识关联导航。
         )
         self.assertEqual(
             footer_style.element.rPr.rFonts.get(qn("w:eastAsia")),
-            "宋体",
+            "仿宋",
         )
         self.assertEqual(
             footer_character_style.element.rPr.rFonts.get(qn("w:ascii")),
             "Times New Roman",
         )
+
+    def test_official_page_fonts_preserve_footer_zones_and_dynamic_fields(self) -> None:
+        document = parse_markdown("""---
+header:
+  left: 调研报告 Report 2026
+  right: 内部资料
+footer:
+  left: 调研人：杨子杰
+  center: 第 {page} 页 / 共 {pages} 页
+  right: 报告 Report 2026
+---
+# 调研报告
+
+正文内容。
+""")
+        for name, expected_font in (
+            ("official-doc-cn", "仿宋_GB2312"),
+            ("official-doc-cn-12pt", "仿宋_GB2312"),
+            ("official-doc-cn-system-fonts", "仿宋"),
+            ("official-doc-cn-system-fonts-12pt", "仿宋"),
+        ):
+            with self.subTest(preset=name):
+                preset = load_preset(name)
+                exported = WordDocument(io.BytesIO(build_docx(document, preset)))
+                section = exported.sections[0]
+                header = section.header.paragraphs[0]
+                footer = section.footer.paragraphs[0]
+                self.assertEqual(header.text, "调研报告 Report 2026\t内部资料")
+                self.assertEqual(footer.text, "调研人：杨子杰\t第 1 页 / 共 1 页\t报告 Report 2026")
+                self.assertEqual(len(footer._p.xpath("./w:r/w:tab")), 2)
+                self.assertEqual(footer.alignment, WD_ALIGN_PARAGRAPH.LEFT)
+                width = preset.page.width - preset.page.margin_left - preset.page.margin_right
+                tabs = footer._p.xpath("./w:pPr/w:tabs/w:tab")
+                self.assertEqual([tab.get(qn("w:val")) for tab in tabs], ["center", "right"])
+                # Tab positions use whole twips; the content width can be odd.
+                self.assertAlmostEqual(int(tabs[0].get(qn("w:pos"))), width / 2, delta=1)
+                self.assertEqual(int(tabs[1].get(qn("w:pos"))), width)
+                self.assertEqual(
+                    [node.text.strip() for node in footer._p.xpath(".//w:instrText")],
+                    ["PAGE", "NUMPAGES"],
+                )
+                self.assertEqual(
+                    [node.get(qn("w:fldCharType")) for node in footer._p.xpath(".//w:fldChar")],
+                    ["begin", "separate", "end"] * 2,
+                )
+
+                # Check text, field instructions/results, paragraph marks, and
+                # named paragraph/character styles after serializing the DOCX.
+                properties = [exported.styles[style_name].element.rPr for style_name in
+                              ("Header", "Header Char", "Footer", "Footer Char")]
+                for paragraph in (header, footer):
+                    properties.append(paragraph._p.pPr.find(qn("w:rPr")))
+                    properties.extend(run._r.rPr for run in paragraph.runs)
+                for rpr in properties:
+                    self.assertIsNotNone(rpr)
+                    fonts = rpr.find(qn("w:rFonts"))
+                    self.assertIsNotNone(fonts)
+                    self.assertEqual(fonts.get(qn("w:eastAsia")), expected_font)
+                    for alphabet in ("ascii", "hAnsi", "cs"):
+                        self.assertEqual(fonts.get(qn(f"w:{alphabet}")), "Times New Roman")
+                    for size_tag in ("sz", "szCs"):
+                        self.assertEqual(rpr.find(qn(f"w:{size_tag}")).get(qn("w:val")), "21")
+
+                title = next(p for p in exported.paragraphs if p.text == "调研报告")
+                body = next(p for p in exported.paragraphs if p.text == "正文内容。")
+                for paragraph, font, size in (
+                    (title, "黑体" if "system-fonts" in name else "方正小标宋简体",
+                     18 if name.endswith("12pt") else 22),
+                    (body, expected_font, 12 if name.endswith("12pt") else 16),
+                ):
+                    self.assertEqual(paragraph.runs[0]._r.rPr.rFonts.get(qn("w:eastAsia")), font)
+                    self.assertEqual(paragraph.runs[0].font.size.pt, size)
 
     def test_page_content_rejects_style_fields_in_frontmatter(self) -> None:
         document = parse_markdown(

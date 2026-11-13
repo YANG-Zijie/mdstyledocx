@@ -33,7 +33,8 @@ JSON 定义中的 `paragraph_defaults` 统一控制全文文字的行距和段�
 ## 可选页面内容
 
 - 页眉：继承 `official-doc-cn-system-fonts`，使用仿宋五号（`10.5 pt`），下方带 `0.5 pt` 黑色单线
-- 页脚：继承 `official-doc-cn-system-fonts`，使用宋体五号（`10.5 pt`）
+- 页脚：继承 `official-doc-cn-system-fonts`，与页眉一致，中文使用仿宋五号（`10.5 pt`）
+- 页眉与页脚的英文、数字均使用 `Times New Roman`，五号（`10.5 pt`）
 - 文本水印：继承 `official-doc-cn-system-fonts`，使用黑体 `36 pt`，默认颜色 `#D9D9D9`、透明度 `0.25`、旋转 `-45°`
 
 页眉、页脚和水印默认不显示。需要时在 Markdown 开头使用 YAML frontmatter：

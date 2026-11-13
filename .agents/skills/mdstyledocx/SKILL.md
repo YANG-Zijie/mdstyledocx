@@ -16,11 +16,11 @@ Use the `mdstyledocx` CLI as the deterministic renderer. Let the model prepare c
 
 ## Choose the CLI runner
 
-Use `mdstyledocx >= 0.4.5` for the Markdown features in this skill, including hard line breaks, table-header pagination, standalone-image layout, and image width/height limits. Use one runner consistently for the task:
+Use `mdstyledocx >= 0.4.6` for the Markdown features in this skill, including hard line breaks, table-header pagination, image layout fixes, and consistent official-document header/footer fonts. Use one runner consistently for the task:
 
 1. Inside the `mdstyledocx` source checkout, use `uv run mdstyledocx`.
-2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.5 or newer is already on `PATH`.
-3. Otherwise use `uvx --from "mdstyledocx>=0.4.5" mdstyledocx` when `uv` and network access are available.
+2. Otherwise run `mdstyledocx --version` and use `mdstyledocx` when version 0.4.6 or newer is already on `PATH`.
+3. Otherwise use `uvx --from "mdstyledocx>=0.4.6" mdstyledocx` when `uv` and network access are available.
 
 Do not install global packages without authorization. If dependency download or network access needs approval, request it immediately before running the command.
 
